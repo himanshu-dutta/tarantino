@@ -10,6 +10,8 @@ The idea is to cover 70-80% of usecases by building new featues (mostly from scr
 
 ---
 
+## Installation
+
 The package can currently be installed through git directly:
 
 ```console
@@ -21,3 +23,17 @@ or with one of the two additional sets of dependencies: `test` and `dev`.
 ```console
 $ pip install "tarantino[test] @ git+https://github.com/himanshu-dutta/tarantino.git"
 ```
+
+---
+
+### Test
+
+The package can further be tested for usage with one of the two examples in the `examples` directory.
+
+Navigating to the root of the example project and running:
+
+```console
+$ uvicorn index:app
+```
+
+launches the project and is accessible at `localhost:8000`.
