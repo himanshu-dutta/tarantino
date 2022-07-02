@@ -1,4 +1,8 @@
-# Tarantino
+<p align="center">
+  <img src="https://raw.githubusercontent.com/himanshu-dutta/tarantino/master/assets/logo.png" alt="Tarantino">
+</p>
+
+---
 
 Tarantino is a simple ASGI (Asynchronous Web Server Gateway) web framework intended for learning purposes only.
 
