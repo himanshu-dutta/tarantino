@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+tarantino = {editable = true, path = "."}
+
+[dev-packages]
+black = "*"
+flake8 = "*"
+isort = "*"
+autoflake = "*"
+uvicorn = {extras = ["standard"], version = "*"}
+
+[requires]
+python_version = "3.10"

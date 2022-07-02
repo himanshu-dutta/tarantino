@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Tic-Tac-Toe Game</title>
+        <style>
+            body {
+                height: 100vh;
+                width: 100vw;
+                display: flex;
+
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 1em;
+            }
+            .btn-bar {
+                display: flex;
+                flex-direction: row;
+                gap: 2px;
+            }
+            #players {
+                display: flex;
+                align-items: center;
+                gap: 2em;
+            }
+            .player {
+                padding: 0.75em 0.5em;
+                border-radius: 10px;
+                color: white;
+            }
+            .player-active {
+                background-color: #0d71a3;
+            }
+            .player-inactive {
+                background-color: #4e4f50;
+            }
+            #gameBoard {
+                border: 1px solid black;
+                width: 603px;
+                height: 603px;
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                background-color: rgb(32, 32, 32);
+                border-radius: 20px;
+                overflow: hidden;
+            }
+            .cell {
+                width: 200px;
+                height: 200px;
+                border: 1px solid black;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            .cell:hover,
+            .cell:focus {
+                cursor: pointer;
+            }
+
+            .cellContent {
+                font-size: 50px;
+                text-align: center;
+                color: white;
+            }
+
+            .btn {
+                border-radius: 5px;
+                background: #070707;
+                color: aliceblue;
+
+                padding: 0.25rem 0.5rem;
+                cursor: pointer;
+                transition: all 200ms ease-in-out;
+            }
+
+            .btn:hover,
+            .btn:focus {
+                background: #4c4c4c;
+            }
+            #game-id {
+                background-color: #2a75c0;
+                border-radius: 5px;
+                color: white;
+                padding: 0.5rem 0.75rem;
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="btn-bar">
+            <input
+                type="text"
+                name="player-name"
+                id="player-name"
+                placeholder="Enter Username"
+            />
+            <div class="btn" id="connect">Connect to Server</div>
+            <div class="btn" id="create-game">Create Game</div>
+            <input
+                type="text"
+                name="join-game-id"
+                id="join-game-id"
+                placeholder="Game Id"
+            />
+            <div class="btn" id="join-game">Join Game</div>
+        </div>
+
+        <div id="players"></div>
+        <div id="game-id"></div>
+
+        <div id="gameBoard"></div>
+
+        <script>
+            let gameId = null;
+            let playerId = null;
+
+            let GAME_METHODS = {
+                CONNECT: "connect",
+                CREATE_GAME: "create",
+                PLAY: "play",
+                UPDATE: "update",
+                JOIN: "join",
+            };
+
+            let sock = new WebSocket("ws://localhost:8080/game");
+
+            sock.onopen = (message) => {
+                console.log("Open message: ", message);
+            };
+
+            sock.onmessage = (message) => {
+                const resp = JSON.parse(message.data);
+
+                if (resp.method === GAME_METHODS.CONNECT) {
+                    playerId = resp.playerId;
+                    console.log(
+                        "Connected to the server with player id: ",
+                        playerId
+                    );
+                } else if (resp.method === GAME_METHODS.CREATE_GAME) {
+                    gameId = resp.gameId;
+                    console.log("New game created with game id: ", gameId);
+                    let gameIdDiv = document.querySelector("#game-id");
+                    gameIdDiv.innerText = `Game ID: ${gameId}`;
+                    gameIdDiv.style.display = "block";
+                } else if (resp.method === GAME_METHODS.UPDATE) {
+                    if (resp.winState.win) {
+                        renderBoard(resp.game.board, resp.winState.combination);
+                    } else renderBoard(resp.game.board, null);
+                    renderPlayers(resp.game.players, resp.game.currentSymbol);
+                } else if (resp.method === GAME_METHODS.JOIN) {
+                    if (resp.success) {
+                        console.log(
+                            "Joined the game with game id: ",
+                            resp.gameId
+                        );
+                        gameId = resp.gameId;
+                        let gameIdDiv = document.querySelector("#game-id");
+                        gameIdDiv.innerText = `Game ID: ${gameId}`;
+                        gameIdDiv.style.display = "block";
+                    } else {
+                        console.log("Unable to join the game: ", resp.msg);
+                    }
+                }
+            };
+            sock.onclose = (message) => {
+                console.log("Close message: ", message);
+            };
+
+            function connect() {
+                let inputField = document.querySelector("#player-name");
+                let playerName = inputField.value;
+                sock.send(
+                    JSON.stringify({
+                        method: GAME_METHODS.CONNECT,
+                        playerName: playerName,
+                    })
+                );
+            }
+
+            function createGameHandler() {
+                sock.send(
+                    JSON.stringify({
+                        method: GAME_METHODS.CREATE_GAME,
+                        playerId: playerId,
+                    })
+                );
+            }
+
+            function joinGameHandler() {
+                let inputField = document.querySelector("#join-game-id");
+                let newGameId = inputField.value;
+                sock.send(
+                    JSON.stringify({
+                        method: GAME_METHODS.JOIN,
+                        playerId: playerId,
+                        gameId: newGameId,
+                    })
+                );
+            }
+
+            function cellClickHandler(ev) {
+                event.stopPropagation();
+                let coord = ev.currentTarget.id.split(",");
+
+                coord[0] = parseInt(coord[0]);
+                coord[1] = parseInt(coord[1]);
+
+                sock.send(
+                    JSON.stringify({
+                        method: GAME_METHODS.PLAY,
+                        playerId: playerId,
+                        gameId: gameId,
+                        cell: coord,
+                    })
+                );
+            }
+
+            function renderBoard(board, winningSequence) {
+                const gameBoardDiv = document.querySelector("#gameBoard");
+
+                if (gameBoardDiv.firstChild) {
+                    for (let x = 0; x < 3; ++x) {
+                        for (let y = 0; y < 3; ++y) {
+                            let symbol = board[x][y];
+
+                            const childIdx = x * 3 + y;
+                            let cellDiv = gameBoardDiv.children[childIdx];
+
+                            if (cellDiv.firstChild.innerText !== symbol) {
+                                cellDiv.firstChild.innerText = symbol;
+                            }
+                        }
+                    }
+
+                    if (winningSequence != null) {
+                        for (let idx = 0; idx < 3; ++idx) {
+                            cellCoord = winningSequence[idx];
+                            cellIdx = cellCoord[0] * 3 + cellCoord[1];
+                            gameBoardDiv.children[
+                                cellIdx
+                            ].style.backgroundColor = "#4f4fb9";
+                        }
+                    }
+                } else {
+                    let childrenList = [];
+
+                    for (let x = 0; x < 3; ++x) {
+                        for (let y = 0; y < 3; ++y) {
+                            let symbol = board[x][y];
+
+                            let cell = document.createElement("div");
+                            cell.id = `${x},${y}`;
+                            cell.classList.add("cell");
+
+                            let cellContent = document.createElement("div");
+                            cellContent.classList.add("cellContent");
+
+                            cellContent.innerText = symbol;
+
+                            cell.append(cellContent);
+
+                            cell.onclick = cellClickHandler;
+                            childrenList.push(cell);
+                        }
+                    }
+                    if (winningSequence != null) {
+                        for (let idx = 0; idx < 3; ++idx) {
+                            cellCoord = winningSequence[idx];
+                            cellIdx = cellCoord[0] * 3 + cellCoord[1];
+                            childrenList[cellIdx].style.backgroundColor =
+                                "#4f4fb9";
+                        }
+                    }
+
+                    while (gameBoardDiv.firstChild) {
+                        gameBoardDiv.removeChild(gameBoardDiv.lastChild);
+                    }
+
+                    gameBoardDiv.append(...childrenList);
+                }
+            }
+
+            function renderPlayers(players, currSymbol) {
+                let playersDiv = document.querySelector("#players");
+                while (playersDiv.firstChild) {
+                    playersDiv.removeChild(playersDiv.lastChild);
+                }
+
+                if (players.X) {
+                    let playerDiv = document.createElement("div");
+                    playerDiv.classList.add("player");
+                    if (currSymbol == "X")
+                        playerDiv.classList.add("player-active");
+                    else playerDiv.classList.add("player-inactive");
+
+                    playerDiv.innerText = `${players.X.name}: X`;
+                    playersDiv.append(playerDiv);
+                }
+                if (players.O) {
+                    let playerDiv = document.createElement("div");
+                    playerDiv.classList.add("player");
+
+                    if (currSymbol == "O")
+                        playerDiv.classList.add("player-active");
+                    else playerDiv.classList.add("player-inactive");
+
+                    playerDiv.innerText = `${players.O.name}: O`;
+                    playersDiv.append(playerDiv);
+                }
+            }
+
+            let connectBtn = document.querySelector("#connect");
+            let createGameBtn = document.querySelector("#create-game");
+            let joinGameBtn = document.querySelector("#join-game");
+
+            connectBtn.onclick = connect;
+            createGameBtn.onclick = createGameHandler;
+            joinGameBtn.onclick = joinGameHandler;
+        </script>
+    </body>
+</html>
