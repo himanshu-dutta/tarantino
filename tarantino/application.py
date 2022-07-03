@@ -9,19 +9,20 @@ PROTOCOLS_TYPE = t.Literal["http", "websocket"]
 
 
 class Tarantino:
-    def __init__(self, name, middlewares: t.Sequence[MiddlewareType]):
+    def __init__(self, name, middlewares: t.Sequence[MiddlewareType] = None):
         self.name = name
         self.http_router = Router()
         self.ws_router = Router()
 
         self.app = self.build_middleware_stack(middlewares)
 
-    def build_middleware_stack(self, middlewares: t.Sequence[MiddlewareType]):
+    def build_middleware_stack(self, middlewares: t.Sequence[MiddlewareType] = None):
         app = self.app
 
-        for middleware in reversed(middlewares):
-            middleware.app = app
-            app = middleware
+        if middlewares:
+            for middleware in reversed(middlewares):
+                middleware.app = app
+                app = middleware
 
         return app
 
