@@ -54,8 +54,6 @@ class Tarantino:
                 type(response), HTTPResponse
             ), f"Expected a response type: {HTTPResponse.__qualname__}"
 
-            print("Headers: ", response.get_headers())
-
             await send(
                 {
                     "type": "http.response.start",
