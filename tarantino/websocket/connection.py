@@ -1,3 +1,4 @@
+from ..http import HTTPRequest
 from ..imports import enum, json, t
 
 
@@ -15,17 +16,14 @@ _MSG_MODES = ["text", "bytes"]
 
 class Connection:
     def __init__(self, scope, receive, send):
+        self.http_request = HTTPRequest(self.scope, None)
+
         self.connection_scope = scope
         self.asgi_receive = receive
         self.asgi_send = send
         self.msg = None
 
         self.connection_state = ConnecionState.CONNECTING
-
-        self._parse_connection_scope()
-
-    def _parse_connection_scope(self):
-        pass
 
     async def accept(self, subprotocols: str = None):
         if self.connection_state != ConnecionState.CONNECTING:

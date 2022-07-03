@@ -1,9 +1,9 @@
-from ..imports import copy, json, parse, t
+from ..imports import deepcopy, json, parse, t
 
 
 class Request:
-    def __init__(self, scope: dict, events: t.List[dict]):
-        self.scope = copy.deepcopy(scope)
+    def __init__(self, scope: dict, events: t.List[dict] = None):
+        self.scope = deepcopy(scope)
 
         self.query_params = parse.parse_qs(self.scope["query_string"].decode())
         self.headers = self.parse_headers(self.scope["headers"])
@@ -16,12 +16,18 @@ class Request:
         self.content_length = self.headers.get("content-length")
         self.content_type = self.headers.get("content-type")
 
-        self._body = self.parse_body(events)
+        self._body = self.parse_body(events) if events else bytes()
 
     async def body(self, as_str=False):
         if as_str:
             self._body.decode("utf-8")
         return self._body
+
+    async def text(self):
+        return await self.body(as_str=True)
+
+    async def bytes(self):
+        return await self.body(as_str=False)
 
     async def json(self):
         return json.loads(await self.body())
