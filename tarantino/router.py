@@ -1,4 +1,4 @@
-from ._types import Callback
+from ._types import HTTPCallback
 from .imports import t
 
 _default_cast = str
@@ -117,7 +117,9 @@ class Router:
 
         return _node
 
-    def find(self, uri: str) -> t.Union[t.Tuple[Callback, t.List], t.Tuple[None, None]]:
+    def find(
+        self, uri: str
+    ) -> t.Union[t.Tuple[HTTPCallback, t.List], t.Tuple[None, None]]:
         uri_split = uri.split("/")
         if uri_split[0] == "":
             uri_split = uri_split[1:]

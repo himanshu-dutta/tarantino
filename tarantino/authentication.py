@@ -1,4 +1,4 @@
-from ._types import Callback
+from ._types import HTTPCallback
 from .http import HTTPRequest, HTTPResponse, HTTPStatusCode
 from .imports import datetime, hashlib, t, wraps
 
@@ -76,7 +76,7 @@ class AuthenticationResponse(HTTPResponse):
 _AnonymousCredentials = Credentials()
 
 
-def authenticate(cb: Callback) -> Callback:
+def authenticate(cb: HTTPCallback) -> HTTPCallback:
     @wraps(cb)
     def _inner(request: HTTPRequest, *args):
         token = request.cookies.get(COOKIE_NAME, "")
