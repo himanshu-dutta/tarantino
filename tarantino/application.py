@@ -1,8 +1,8 @@
+from ._types import MiddlewareType
 from .http import HTTPRequest, HTTPResponse
 from .imports import t
 from .router import Router
 from .websocket import WSConnection
-from ._types import MiddlewareType
 
 _protocols = ["http", "websocket"]
 PROTOCOLS_TYPE = t.Literal["http", "websocket"]
