@@ -14,7 +14,7 @@ class Tarantino:
         self.http_router = Router()
         self.ws_router = Router()
 
-        self.app = self.build_middleware_stack(middlewares)
+        setattr(self, "app", self.build_middleware_stack(middlewares))
 
     def build_middleware_stack(self, middlewares: t.Sequence[MiddlewareType] = None):
         app = self.app

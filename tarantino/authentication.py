@@ -82,7 +82,7 @@ def authenticate(cb: HTTPCallback) -> HTTPCallback:
         token = request.cookies.get(COOKIE_NAME, "")
         creds = _token_registry.get(token, _AnonymousCredentials)
 
-        request.credentials = creds
+        setattr(request, "credentials", creds)
         response = cb(request, *args)
 
         return response

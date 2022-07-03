@@ -5,7 +5,7 @@ class Request:
     def __init__(self, scope: dict, events: t.List[dict] = None):
         self.scope = deepcopy(scope)
 
-        self.query_params = parse.parse_qs(self.scope.get("query_string").decode())
+        self.query_params = parse.parse_qs(self.scope.get("query_string", b"").decode())
         self.headers = self.parse_headers(self.scope.get("headers"))
         self.cookies = self.parse_cookies(self.headers.get("cookie", ""))
 

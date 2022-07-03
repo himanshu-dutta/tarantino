@@ -3,7 +3,7 @@ from .imports import t
 
 _default_cast = str
 _default_cast_name = "str"
-_cast_registry = {
+_cast_registry: t.Dict[str, t.Callable] = {
     "int": int,
     "str": str,
     "float": float,
@@ -20,7 +20,7 @@ class _Node:
     def __init__(self):
 
         self.cast_name = _default_cast_name
-        self.ptrs: t.Dict[str, "_Node"] = dict()
+        self.ptrs: t.Dict[str | int, "_Node"] = dict()
 
         self.cb: t.Callable = None
         self.is_leaf = False
@@ -81,6 +81,7 @@ class Router:
 
     def _parse_split(self, split: str):
 
+        key: str | int = _Node._default_key
         if split.startswith("{") and split.endswith("}"):
             split = split[1:-1]
             kc = split.split(":")
@@ -89,7 +90,6 @@ class Router:
                 raise ValueError(f"Invalid placeholder found in url: {':'.join(kc)}")
 
             cast_name = kc[1] if len(kc) == 2 else _default_cast_name
-            key = _Node._default_key
 
         else:
             cast_name = _default_cast_name
