@@ -1,5 +1,6 @@
 from ..http import HTTPRequest
 from ..imports import enum, json, t
+from .utils import WSStatusCode
 
 
 class ConnecionState(enum.Enum):
@@ -39,7 +40,9 @@ class Connection:
         )
         self.connection_state = ConnecionState.OPENED
 
-    async def close(self, code: int = 1000, reason: str = ""):
+    async def close(
+        self, code: int = WSStatusCode.STATUS_1000_NORMAL_CLOSURE, reason: str = ""
+    ):
         if self.connection_state == ConnecionState.CLOSED:
             msg = "Unepected call to close %s connection." % (self.connection_state)
             raise RuntimeError(msg)
