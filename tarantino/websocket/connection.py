@@ -16,7 +16,7 @@ _MSG_MODES = ["text", "bytes"]
 
 class Connection:
     def __init__(self, scope, receive, send):
-        self.http_request = HTTPRequest(self.scope, None)
+        self.http_request = HTTPRequest(scope, None)
 
         self.connection_scope = scope
         self.asgi_receive = receive

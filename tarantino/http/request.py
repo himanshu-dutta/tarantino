@@ -5,14 +5,14 @@ class Request:
     def __init__(self, scope: dict, events: t.List[dict] = None):
         self.scope = deepcopy(scope)
 
-        self.query_params = parse.parse_qs(self.scope["query_string"].decode())
-        self.headers = self.parse_headers(self.scope["headers"])
+        self.query_params = parse.parse_qs(self.scope.get("query_string").decode())
+        self.headers = self.parse_headers(self.scope.get("headers"))
         self.cookies = self.parse_cookies(self.headers.get("cookie", ""))
 
         self.client = self.scope["client"]
         self.http_version = self.scope["http_version"]
-        self.method = self.scope["method"]
-        self.uri = self.scope["path"]
+        self.method = self.scope.get("method")
+        self.uri = self.scope.get("path")
         self.content_length = self.headers.get("content-length")
         self.content_type = self.headers.get("content-type")
 
