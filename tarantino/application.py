@@ -2,16 +2,29 @@ from .http import HTTPRequest, HTTPResponse
 from .imports import t
 from .router import Router
 from .websocket import WSConnection
+from ._types import MiddlewareType
 
 _protocols = ["http", "websocket"]
 PROTOCOLS_TYPE = t.Literal["http", "websocket"]
 
 
 class Tarantino:
-    def __init__(self, name):
+    def __init__(self, name, middlewares: t.Sequence[MiddlewareType] = None):
         self.name = name
         self.http_router = Router()
         self.ws_router = Router()
+
+        self.app = self.build_middleware_stack(middlewares)
+
+    def build_middleware_stack(self, middlewares: t.Sequence[MiddlewareType] = None):
+        app = self.app
+
+        if middlewares:
+            for middleware in reversed(middlewares):
+                middleware.app = app
+                app = middleware
+
+        return app
 
     def register_route(self, uri, protocol: PROTOCOLS_TYPE = "http"):
         def _outer(fn):
@@ -27,7 +40,8 @@ class Tarantino:
 
         return _outer
 
-    async def __call__(self, scope, receive, send):
+    async def app(self, scope, receive, send):
+
         scope_type = scope["type"]
 
         if scope_type == "http":
@@ -80,6 +94,9 @@ class Tarantino:
                 raise NotImplementedError(err % uri)
 
             await cb(conn, *args)
+
+    async def __call__(self, scope, receive, send):
+        return await self.app(scope, receive, send)
 
     def register_subapp(self, subapp: "SubApp"):
         self.http_router.merge(subapp.prefix, subapp.http_router)
