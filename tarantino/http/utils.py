@@ -63,6 +63,19 @@ class _HTTPStatusCode:
     STATUS_510_NOT_EXTENDED = 510
     STATUS_511_NETWORK_AUTHENTICATION_REQUIRED = 511
 
+    def get_status_message(self, status_code: int):
+        status_codes = [
+            attr_name for attr_name in dir(self) if attr_name.startswith("STATUS_")
+        ]
+
+        for attr_name in status_codes:
+            if getattr(HTTPStatusCode, attr_name) == status_code:
+                status = attr_name.split("_")
+                status = status[2:]
+                return " ".join(status)
+
+        raise ValueError(f"Invalid status code: {status_code}")
+
 
 class _HTTPMethods:
     _methods = [
