@@ -47,8 +47,8 @@ async def index(request: HTTPRequest):
 @authenticate
 async def profile(request: HTTPRequest, username: str):
     creds = request.credentials
-    if not hasattr(creds, "username") or getattr(creds, "username" != username):
-        return HTTPResponse("", status=HTTPStatusCode.STATUS_401_UNAUTHORIZED)
+    if not hasattr(creds, "username") or getattr(creds, "username") != username:
+        return HTTPResponse("", status=HTTPStatusCode.STATUS_500_INTERNAL_SERVER_ERROR)
 
     body = f"""
     <!doctype html>
