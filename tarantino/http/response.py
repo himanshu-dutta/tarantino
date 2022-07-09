@@ -8,7 +8,7 @@ class Response:
         self,
         body: str | bytes,
         status: int,
-        headers: t.List[t.Tuple[bytes, bytes]],
+        headers: t.List[t.Tuple[bytes, bytes]] = [],
     ):
         self.body = body
         self.status = status
