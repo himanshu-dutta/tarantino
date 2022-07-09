@@ -1,4 +1,4 @@
-from .._types import MiddlewareType, ASGIApp, Message, Send
+from .._types import ASGIApp, Message, MiddlewareType, Send
 from ..http import HTTPStatusCode
 
 response_template = """
@@ -61,15 +61,16 @@ response_template = """
 class ErrorResponse(MiddlewareType):
     def __init__(self):
         self.app: ASGIApp = None
-        self.has_sent_body = False
 
     async def __call__(self, scope, receive, send):
         send = self.error_send(send)
+
         return await self.app(scope, receive, send)
 
-    def error_send(self, send: Send) -> Send:
+    def error_send(self, send: Send, has_sent_body: bool = False) -> Send:
         async def _wrapper(message: Message):
-            if self.has_sent_body:
+            nonlocal has_sent_body
+            if has_sent_body:
                 return
 
             if message["type"] == "http.response.start" and message["status"] >= 400:
@@ -92,7 +93,7 @@ class ErrorResponse(MiddlewareType):
                     }
                 )
 
-                self.has_sent_body = True
+                has_sent_body = True
                 return
 
             await send(message)
