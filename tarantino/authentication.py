@@ -78,12 +78,12 @@ _AnonymousCredentials = Credentials()
 
 def authenticate(cb: HTTPCallback) -> HTTPCallback:
     @wraps(cb)
-    def _inner(request: HTTPRequest, *args):
+    def _inner(request: HTTPRequest, **kwargs):
         token = request.cookies.get(COOKIE_NAME, "")
         creds = _token_registry.get(token, _AnonymousCredentials)
 
         setattr(request, "credentials", creds)
-        response = cb(request, *args)
+        response = cb(request, **kwargs)
 
         return response
 
