@@ -1,18 +1,20 @@
-import os
-from pathlib import Path
-
-import blog.index as blog
-import chat.index as chat
 import login
 import salutation
+import chat.index as chat
+import blog.index as blog
 
 from tarantino import Tarantino
 from tarantino.authentication import authenticate
-from tarantino.http import HTTP200Response, HTTPRequest, JSONResponse
+from tarantino.middleware import default_middlewares
+from tarantino.http import (
+    HTTP200Response,
+    HTTPRequest,
+    JSONResponse,
+    HTTPResponse,
+    HTTPStatusCode,
+)
 
-app = Tarantino("basic")
-
-curr_dir = Path(os.path.dirname(__file__))
+app = Tarantino("basic", middlewares=default_middlewares)
 
 
 app.register_subapp(salutation.subapp)
@@ -34,6 +36,26 @@ async def index(request: HTTPRequest):
     <body>
     <h1> Hello {name}!! </h1>
     <h2> This is Index Page </h2>
+    </body>
+    </html>
+    """
+
+    return HTTP200Response(body)
+
+
+@app.get("/user/profile/{username}")
+@authenticate
+async def profile(request: HTTPRequest, username: str):
+    creds = request.credentials
+    if not hasattr(creds, "username") or getattr(creds, "username" != username):
+        return HTTPResponse("", status=HTTPStatusCode.STATUS_401_UNAUTHORIZED)
+
+    body = f"""
+    <!doctype html>
+    <html>
+    <body>
+    <h1> Hello {username}!! </h1>
+    <h2> This is Profile Page </h2>
     </body>
     </html>
     """
