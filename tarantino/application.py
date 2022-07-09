@@ -163,9 +163,14 @@ class Tarantino:
 
 
 class SubApp:
+    method_names = dir(HTTPMethods) + ["websocket"]
+
     def __init__(self, prefix):
         self.prefix = prefix
         self.router = Router()
+
+    def register_cast(self, cast_name: str, cast: CastType):
+        self.router.register_cast(cast_name, cast)
 
     def register_route(self, path, methods: t.List[str] = ["get"]):
         def _wrapper(fn):
