@@ -74,7 +74,7 @@ class Route:
         if not handler:
             handler = self.default_handler
 
-        return await handler(conn_request)
+        return await handler(conn_request, **kwargs)
 
 
 class RouterNode:
@@ -257,11 +257,14 @@ class Router:
 
         for segment in path_prefix_segments[:-1]:
             node = node.setdefault(segment, RouterNode(self.cast_registry))
-        node.setdefault(segment, o.root_node)
+        node.setdefault(path_prefix_segments[-1], o.root_node)
 
         self.cast_registry.merge(o.cast_registry)
 
     def parse_path(self, path: str):
+        if path == "":
+            return []
+
         if path.startswith("/"):
             path = path[1:]
         return path.split("/")
