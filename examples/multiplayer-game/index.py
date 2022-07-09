@@ -14,7 +14,7 @@ _player_registry: Dict[str, Tuple[ttt.Player, WSConnection]] = dict()
 _game_registry = dict()
 
 
-@app.register_route("/")
+@app.get("/")
 async def index(request: HTTPRequest):
     with open("./index.html") as fl:
         body = fl.read()
@@ -61,7 +61,7 @@ def get_send_update(game: ttt.TicTacToe):
     return _inner
 
 
-@app.register_route("/game", protocol="websocket")
+@app.websocket("/game")
 async def game(conn: WSConnection):
     await conn.accept()
 

@@ -4,7 +4,6 @@ from pathlib import Path
 from tarantino import SubApp
 from tarantino.http import HTTP200Response
 
-
 subapp = SubApp("/programming")
 
 curr_dir = Path(os.path.dirname(__file__))
@@ -16,7 +15,7 @@ def slug_to_title(slug: str):
     return " ".join(splits)
 
 
-@subapp.register_route("/")
+@subapp.get("/")
 async def index(request):
     with open(curr_dir / "index.html") as fl:
         body = fl.read()
@@ -24,7 +23,7 @@ async def index(request):
     return HTTP200Response(body)
 
 
-@subapp.register_route("/{slug:str}")
+@subapp.get("/{slug:str}")
 async def blog(request, slug: str):
     title = slug_to_title(slug)
 

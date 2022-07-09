@@ -1,11 +1,11 @@
 from tarantino import SubApp
+from tarantino.authentication import AuthenticationResponse, Credentials
 from tarantino.http import HTTP404Response
-from tarantino.authentication import Credentials, AuthenticationResponse
 
 subapp = SubApp(prefix="/login")
 
 
-@subapp.register_route("")
+@subapp.get("/")
 async def login(request):
     username = request.query_params.get("username")
     password = request.query_params.get("password")

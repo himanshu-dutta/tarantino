@@ -1,5 +1,9 @@
 from datetime import datetime
 
 
-def to_datetime(ts: str):
-    return datetime.utcfromtimestamp(int(ts))
+class DatetimeCast:
+    pattern = r"^[-+]?[1-9][0-9]*$"
+
+    @classmethod
+    def parse(ts: str):
+        return datetime.utcfromtimestamp(int(ts))

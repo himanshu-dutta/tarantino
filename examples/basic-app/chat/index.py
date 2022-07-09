@@ -1,11 +1,10 @@
 from tarantino import SubApp
 from tarantino.websocket import WSConnection
-from tarantino.authentication import authenticate
 
 subapp = SubApp(prefix="/chat")
 
 
-@subapp.register_route("/{username:str}", protocol="websocket")
+@subapp.websocket("/{username:str}")
 async def chat_handler(conn: WSConnection, username: str):
     await conn.accept()
 
