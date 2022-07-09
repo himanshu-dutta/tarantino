@@ -13,18 +13,12 @@ WSCallback = t.Callable[[WSConnection, str], t.Awaitable[None | HTTPResponse]]
 
 
 class MiddlewareType(t.Protocol):
+    app: ASGIApp = ...
+
     def __init__(self, **options: t.Any):
         ...
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
-        ...
-
-    @property
-    def app(self) -> ASGIApp:
-        ...
-
-    @app.setter
-    def app(self, app: ASGIApp) -> None:
         ...
 
 
