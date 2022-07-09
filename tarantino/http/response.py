@@ -4,7 +4,12 @@ from .utils import HTTPStatusCode
 
 
 class Response:
-    def __init__(self, body, status: int, headers):
+    def __init__(
+        self,
+        body: str | bytes,
+        status: int,
+        headers: t.List[t.Tuple[bytes, bytes]],
+    ):
         self.body = body
         self.status = status
         self.headers = headers
@@ -24,8 +29,8 @@ class Response:
 
     def add_cookie(
         self,
-        key,
-        value,
+        key: str,
+        value: str,
         *,
         domain: str = None,
         path: str = "/",
@@ -65,25 +70,29 @@ class Response:
 
 
 class HTMLResponse(Response):
-    def __init__(self, body, status):
+    def __init__(self, body: str | bytes, status: int):
         headers = [(b"content-type", b"text/html; charset=utf8")]
         super().__init__(body, status, headers)
 
 
 class HTTP200Response(Response):
-    def __init__(self, body):
+    def __init__(self, body: str | bytes):
         headers = [(b"content-type", b"text/html; charset=utf8")]
         super().__init__(body, HTTPStatusCode.STATUS_200_OK, headers)
 
 
 class HTTP404Response(Response):
-    def __init__(self, body=""):
+    def __init__(self, body: str | bytes = ""):
         headers = [(b"content-type", b"text/html; charset=utf8")]
-        super().__init__(HTTPStatusCode.STATUS_404_NOT_FOUND, body, headers)
+        super().__init__(body, HTTPStatusCode.STATUS_404_NOT_FOUND, headers)
 
 
 class JSONResponse(Response):
-    def __init__(self, body, status=HTTPStatusCode.STATUS_200_OK):
+    def __init__(
+        self,
+        body: t.Any,
+        status: int = HTTPStatusCode.STATUS_200_OK,
+    ):
         body = json.dumps(body)
         headers = [(b"content-type", b"application/json")]
         super().__init__(body, status, headers)

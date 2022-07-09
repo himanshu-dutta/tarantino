@@ -12,7 +12,7 @@ class Tarantino:
         self.name = name
         self.router = Router()
 
-        setattr(self, "app", self.build_middleware_stack(middlewares))
+        self.asgi_app = self.build_middleware_stack(middlewares)
 
     def build_middleware_stack(self, middlewares: t.Sequence[MiddlewareType] = None):
         app = self.app
@@ -40,36 +40,6 @@ class Tarantino:
             return fn
 
         return _wrapper
-
-    def get(self, path: str):
-        return self.register_route(path, methods=["get"])
-
-    def head(self, path: str):
-        return self.register_route(path, methods=["head"])
-
-    def post(self, path: str):
-        return self.register_route(path, methods=["post"])
-
-    def put(self, path: str):
-        return self.register_route(path, methods=["put"])
-
-    def delete(self, path: str):
-        return self.register_route(path, methods=["delete"])
-
-    def connect(self, path: str):
-        return self.register_route(path, methods=["connect"])
-
-    def options(self, path: str):
-        return self.register_route(path, methods=["options"])
-
-    def trace(self, path: str):
-        return self.register_route(path, methods=["trace"])
-
-    def patch(self, path: str):
-        return self.register_route(path, methods=["patch"])
-
-    def websocket(self, path: str):
-        return self.register_route(path, methods=["websocket"])
 
     async def http_handler(self, scope, receive, send):
         events = list()
@@ -156,10 +126,41 @@ class Tarantino:
             raise ValueError(f"Invalid scope type: {scope_type}")
 
     async def __call__(self, scope, receive, send):
-        return await self.app(scope, receive, send)
+        scope["app"] = self
+        return await self.asgi_app(scope, receive, send)
 
     def register_subapp(self, subapp: "SubApp"):
         self.router.merge_router(subapp.prefix, subapp.router)
+
+    def get(self, path: str):
+        return self.register_route(path, methods=["get"])
+
+    def head(self, path: str):
+        return self.register_route(path, methods=["head"])
+
+    def post(self, path: str):
+        return self.register_route(path, methods=["post"])
+
+    def put(self, path: str):
+        return self.register_route(path, methods=["put"])
+
+    def delete(self, path: str):
+        return self.register_route(path, methods=["delete"])
+
+    def connect(self, path: str):
+        return self.register_route(path, methods=["connect"])
+
+    def options(self, path: str):
+        return self.register_route(path, methods=["options"])
+
+    def trace(self, path: str):
+        return self.register_route(path, methods=["trace"])
+
+    def patch(self, path: str):
+        return self.register_route(path, methods=["patch"])
+
+    def websocket(self, path: str):
+        return self.register_route(path, methods=["websocket"])
 
 
 class SubApp:

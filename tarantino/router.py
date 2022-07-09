@@ -125,6 +125,26 @@ class RouterNode:
         _, var_cast_name = self.parse_variable_path_segment(segment)
         return self.variable_path_segment_pointers.get(var_cast_name, (None, None))[1]
 
+    def setdefault_absolute_path_segment(self, segment: str, node: "RouterNode"):
+        matched_node = self.get_absolute_path_segment(segment)
+        if not matched_node:
+            matched_node = node
+            self.add_absolute_path_segment(segment, node)
+        return matched_node
+
+    def setdefault_variable_path_segment(self, segment: str, node: "RouterNode"):
+        matched_node = self.get_variable_path_segment(segment)
+        if not matched_node:
+            matched_node = node
+            self.add_variable_path_segment(segment, node)
+        return matched_node
+
+    def setdefault(self, segment: str, node: "RouterNode"):
+        if self.is_variable_segment(segment):
+            return self.setdefault_variable_path_segment(segment, node)
+        else:
+            return self.setdefault_absolute_path_segment(segment, node)
+
     def get_path_segment(self, segment: str):
         if self.is_variable_segment(segment):
             return self.get_variable_path_segment(segment)
@@ -147,26 +167,6 @@ class RouterNode:
                 return (var_name, var_value, node)
 
         return (None, None, None)
-
-    def setdefault_absolute_path_segment(self, segment: str, node: "RouterNode"):
-        matched_node = self.get_absolute_path_segment(segment)
-        if not matched_node:
-            matched_node = node
-            self.add_absolute_path_segment(segment, node)
-        return matched_node
-
-    def setdefault_variable_path_segment(self, segment: str, node: "RouterNode"):
-        matched_node = self.get_variable_path_segment(segment)
-        if not matched_node:
-            matched_node = node
-            self.add_variable_path_segment(segment, node)
-        return matched_node
-
-    def setdefault(self, segment: str, node: "RouterNode"):
-        if self.is_variable_segment(segment):
-            return self.setdefault_variable_path_segment(segment, node)
-        else:
-            return self.setdefault_absolute_path_segment(segment, node)
 
     def parse_variable_path_segment(self, segment: str) -> t.Tuple[str, str]:
         if not segment.startswith("{") or not segment.endswith("}"):
