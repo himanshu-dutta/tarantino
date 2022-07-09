@@ -1,179 +1,270 @@
-from ._types import HTTPCallback
+from ._types import CastType, HTTPCallback, WSCallback
+from .casts import CastRegistry
+from .http import HTTPMethods, HTTPRequest, HTTPResponse, HTTPStatusCode
 from .imports import t
-
-_default_cast = str
-_default_cast_name = "str"
-_cast_registry: t.Dict[str, t.Callable] = {
-    "int": int,
-    "str": str,
-    "float": float,
-    "bool": bool,
-}
+from .websocket import WSConnection
 
 
-_indent_factor = 4
+class Route:
+    """`Route` consists of mapping between the `HTTP` methods and their
+    respective handlers.
+
+    It also maps `websocket` request to a handler.
+    """
+
+    method_names = dir(HTTPMethods) + ["websocket"]
+
+    def __init__(self, path: str):
+        self.path = path
+        self.handlers: t.Dict[str, HTTPCallback | WSCallback] = dict()
+
+    def __setattr__(self, name, value):
+        if name in self.method_names:
+            self.handlers[name] = value
+        else:
+            super().__setattr__(name, value)
+
+    def __getattr__(self, name):
+        if name in self.method_names:
+            return self.handlers.get(name)
+        else:
+            raise AttributeError(
+                f"Invalid method name: {name}. Allowed methods are:"
+                f" {self.method_names}"
+            )
+
+    async def not_allowed_handler(self, status_code: int):
+        http_method_not_allowed_response = HTTPResponse("", status_code, [])
+        return http_method_not_allowed_response
+
+    async def default_options_handler(self):
+        headers = list()
+        allowed_methods = []
+
+        for method in dir(HTTPMethods):
+            if getattr(self, method) is not None:
+                allowed_methods.append(method.upper())
+
+        headers = [(b"allow", ", ".join(allowed_methods).encode())]
+
+        return HTTPResponse("", HTTPStatusCode.STATUS_204_NO_CONTENT, headers)
+
+    async def default_handler(
+        self, conn_request: HTTPRequest | WSConnection, **kwargs
+    ) -> t.Awaitable[HTTPResponse]:
+        scope_type = conn_request.scope["type"]
+        method_name = conn_request.scope.get("method", "").lower()
+
+        if scope_type == "http":
+            if method_name == "options":
+                return await self.default_options_handler()
+            return await self.not_allowed_handler(
+                HTTPStatusCode.STATUS_405_METHOD_NOT_ALLOWED
+            )
+
+        elif scope_type == "websocket":
+            return await self.not_allowed_handler(HTTPStatusCode.STATUS_403_FORBIDDEN)
+
+        else:
+            raise ValueError(f"Invalid scope type: {scope_type}")
+
+    async def __call__(self, conn_request: HTTPRequest | WSConnection, **kwargs):
+        method = str(getattr(conn_request, "method", "websocket")).lower()
+        handler = getattr(self, method)
+        if not handler:
+            handler = self.default_handler
+
+        return await handler(conn_request)
 
 
-class _Node:
-    _default_key = 0
+class RouterNode:
+    """A `RouterNode` consists of three attributes: a `Route` and two dicts.
 
-    def __init__(self):
+    The first dict matches the an absolute path segment name, such as,
+    `user` in `/api/user/profile`, to a `RouterNode`. The second dict
+    maps of `cast` names to `RouterNode`. Example of variable path
+    segment is `{user_id:int}` in `/api/user/{user_id:int}`.
+    """
 
-        self.cast_name = _default_cast_name
-        self.ptrs: t.Dict[str | int, "_Node"] = dict()
+    def __init__(self, cast_registry: CastRegistry):
+        self.absolute_path_segment_pointers: t.Dict[str, "RouterNode"] = dict()
+        self.variable_path_segment_pointers: t.Dict[
+            str, t.Tuple[str, "RouterNode"]
+        ] = dict()
 
-        self.cb: t.Callable = None
-        self.is_leaf = False
+        self.route: Route | None = None
+        self.cast_registry = cast_registry
 
-    def get_repr(self, key_name="...", indent=0):
+    @property
+    def has_route(self):
+        return self.route is not None
 
-        o = ""
+    def add_absolute_path_segment(self, segment: str, node: "RouterNode"):
+        if self.get_absolute_path_segment(segment):
+            raise ValueError(
+                f"Already have a node mapped to the path segment: {segment}"
+            )
 
-        # indentation: Option A
-        for ind in range(0, indent, _indent_factor):
-            if ind > 0:
-                o += " " * (_indent_factor - 1)
-            if ind == indent - _indent_factor:
-                o += "|- "
-            else:
-                o += "|"
+        self.absolute_path_segment_pointers[segment] = node
 
-        # indentation: Option B
-        # o += " " * indent
+    def add_variable_path_segment(self, segment: str, node: "RouterNode"):
+        var_name, var_cast_name = self.parse_variable_path_segment(segment)
 
-        o += key_name
+        if self.cast_registry.get(var_cast_name) is None:
+            raise ValueError(f"Invalid cast: {var_cast_name}")
 
-        if self.is_leaf:
-            o += f" -> {self.cb.__qualname__}()"
+        if self.variable_path_segment_pointers.get(var_cast_name):
+            raise ValueError(f"Already have a node mapped to the cast: {var_cast_name}")
 
-        if len(self.ptrs):
-            o += ":"
+        self.variable_path_segment_pointers[var_cast_name] = (var_name, node)
 
-        for (k, n) in self.ptrs.items():
-            if k == 0:
-                key = "/{%s}" % (n.cast_name)
-            else:
-                key = "/" + k
+    def get_absolute_path_segment(self, segment: str):
+        return self.absolute_path_segment_pointers.get(segment)
 
-            o += "\n"
-            o += n.get_repr(key, indent + _indent_factor)
+    def get_variable_path_segment(self, segment: str):
+        _, var_cast_name = self.parse_variable_path_segment(segment)
+        return self.variable_path_segment_pointers.get(var_cast_name, (None, None))[1]
 
-        return o
+    def get_path_segment(self, segment: str):
+        if self.is_variable_segment(segment):
+            return self.get_variable_path_segment(segment)
+        else:
+            return self.get_absolute_path_segment(segment)
 
-    def __repr__(self):
-        return self.get_repr()
+    def match_absolute_path_segment(self, segment: str) -> t.Optional["RouterNode"]:
+        return self.absolute_path_segment_pointers.get(segment)
+
+    def match_variable_path_segment(
+        self, segment: str
+    ) -> t.Tuple[str, t.Any, "RouterNode"] | t.Tuple[None, None, None]:
+        for cast_name, (
+            var_name,
+            node,
+        ) in self.variable_path_segment_pointers.items():
+            cast = self.cast_registry.get(cast_name)
+            if cast.pattern.match(segment):
+                var_value = cast.parse(segment)
+                return (var_name, var_value, node)
+
+        return (None, None, None)
+
+    def setdefault_absolute_path_segment(self, segment: str, node: "RouterNode"):
+        matched_node = self.get_absolute_path_segment(segment)
+        if not matched_node:
+            matched_node = node
+            self.add_absolute_path_segment(segment, node)
+        return matched_node
+
+    def setdefault_variable_path_segment(self, segment: str, node: "RouterNode"):
+        matched_node = self.get_variable_path_segment(segment)
+        if not matched_node:
+            matched_node = node
+            self.add_variable_path_segment(segment, node)
+        return matched_node
+
+    def setdefault(self, segment: str, node: "RouterNode"):
+        if self.is_variable_segment(segment):
+            return self.setdefault_variable_path_segment(segment, node)
+        else:
+            return self.setdefault_absolute_path_segment(segment, node)
+
+    def parse_variable_path_segment(self, segment: str) -> t.Tuple[str, str]:
+        if not segment.startswith("{") or not segment.endswith("}"):
+            raise ValueError(f"Invalid variable path segment: {segment}")
+        segment = segment[1:-1]
+        segment_splits = segment.split(":")
+
+        if len(segment_splits) == 1:
+            var_name, var_cast_name = (
+                segment_splits[0],
+                self.cast_registry.default_cast_name,
+            )
+        elif len(segment_splits) == 2:
+            var_name, var_cast_name = segment_splits
+        else:
+            raise ValueError(
+                f"Invalid path segment with more than one `:`(colon): {segment}"
+            )
+        return var_name, var_cast_name
+
+    def is_variable_segment(self, segment: str):
+        return (
+            segment.startswith("{")
+            and segment.endswith("}")
+            and len(segment.split(":")) <= 2
+        )
 
 
 class Router:
     def __init__(self):
-        self.root = _Node()
+        self.cast_registry = CastRegistry()
+        self.root_node: RouterNode = RouterNode(self.cast_registry)
 
-    def __repr__(self):
-        return repr(self.root)
+    def add_route(self, path: str, route: Route):
+        path_segments = self.parse_path(path)
+        node = self.root_node
 
-    def add(self, uri, cb):
-        uri_split = uri.split("/")
+        for segment in path_segments:
+            node = node.setdefault(segment, RouterNode(self.cast_registry))
+        node.route = route
 
-        if uri_split[0] == "":
-            uri_split = uri_split[1:]
+    def get_route(self, path: str):
+        path_segments = self.parse_path(path)
+        node = self.root_node
 
-        self.root = self._add(uri_split, 0, cb, self.root)
+        for segment in path_segments:
+            node = node.get_path_segment(segment)
+            if not node:
+                return None
 
-    def _parse_split(self, split: str):
+        return node.route
 
-        key: str | int = _Node._default_key
-        if split.startswith("{") and split.endswith("}"):
-            split = split[1:-1]
-            kc = split.split(":")
+    def setdefault_route(self, path: str, route: Route):
+        matched_route = self.get_route(path)
+        if not matched_route:
+            matched_route = route
+            self.add_route(path, route)
+        return matched_route
 
-            if len(kc) > 2:
-                raise ValueError(f"Invalid placeholder found in url: {':'.join(kc)}")
-
-            cast_name = kc[1] if len(kc) == 2 else _default_cast_name
-
-        else:
-            cast_name = _default_cast_name
-            key = split
-
-        return key, cast_name
-
-    def _add(self, uri_split, idx, cb, _node: _Node) -> _Node:
-
-        if idx == len(uri_split):
-            _node.is_leaf = True
-            _node.cb = cb
-
-        else:
-            split = str(uri_split[idx])
-            key, cast_name = self._parse_split(split)
-
-            _node.cast_name = cast_name
-            _node.ptrs[key] = self._add(
-                uri_split,
-                idx + 1,
-                cb,
-                _node.ptrs.get(key, _Node()),
-            )
-
-        return _node
-
-    def find(
+    def match_uri(
         self, uri: str
-    ) -> t.Union[t.Tuple[HTTPCallback, t.List], t.Tuple[None, None]]:
-        uri_split = uri.split("/")
-        if uri_split[0] == "":
-            uri_split = uri_split[1:]
-        return self._find(uri_split, 0, list(), self.root)
+    ) -> t.Tuple[t.Optional[Route], t.Dict[t.Optional[str], t.Any]] | t.Tuple[
+        None, None
+    ]:
+        uri_segments = self.parse_path(uri)
+        node = self.root_node
+        kwargs: t.Dict[t.Optional[str], t.Any] = dict()
 
-    def _find(self, uri_split, idx, args: list, _node: _Node):
-        if idx == len(uri_split):
-            if not _node or not _node.is_leaf:
-                return None, None
+        for segment in uri_segments:
+            next_node = node.match_absolute_path_segment(segment)
+            if next_node:
+                node = next_node
+                continue
 
-            return (_node.cb, args)
+            var_name, var_value, next_node = node.match_variable_path_segment(segment)
+            if next_node:
+                kwargs[var_name] = var_value
+                node = next_node
+                continue
 
-        key = uri_split[idx]
-        next_node = _node.ptrs.get(key)
+            return None, None
 
-        if next_node is None:
-            next_node = _node.ptrs.get(_Node._default_key)
+        return node.route, kwargs
 
-            if next_node is None:
-                return None, None
+    def merge_router(self, path_prefix: str, o: "Router"):
+        path_prefix_segments = self.parse_path(path_prefix)
+        node = self.root_node
 
-            cast = _cast_registry.get(_node.cast_name, _default_cast)
-            args.append(cast(key))
+        for segment in path_prefix_segments[:-1]:
+            node = node.setdefault(segment, RouterNode(self.cast_registry))
+        node.setdefault(segment, o.root_node)
 
-        return self._find(uri_split, idx + 1, args, next_node)
+        self.cast_registry.merge(o.cast_registry)
 
-    def merge(self, prefix: str, o: "Router"):
-        prefix_split = prefix.split("/")
-        if prefix_split[0] == "":
-            prefix_split = prefix_split[1:]
+    def parse_path(self, path: str):
+        if path.startswith("/"):
+            path = path[1:]
+        return path.split("/")
 
-        self.root = self._merge(prefix_split, 0, o, self.root)
-
-    def _merge(self, prefix_split, idx, o: "Router", _node: _Node):
-        if idx == len(prefix_split):
-            _node.ptrs.update(o.root.ptrs)
-            _node.is_leaf = o.root.is_leaf
-            _node.cast_name = o.root.cast_name
-            _node.cb = o.root.cb
-
-        else:
-            split = str(prefix_split[idx])
-            key, cast_name = self._parse_split(split)
-
-            _node.cast_name = cast_name
-            _node.ptrs[key] = self._merge(
-                prefix_split,
-                idx + 1,
-                o,
-                _node.ptrs.get(key, _Node()),
-            )
-
-        return _node
-
-
-def register_cast(name: str, cast: t.Callable):
-    _cast_registry[name] = cast
+    def register_cast(self, cast_name: str, cast: CastType):
+        self.cast_registry.register_cast(cast_name, cast)

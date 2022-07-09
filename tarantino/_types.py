@@ -1,5 +1,6 @@
 from .http import HTTPRequest, HTTPResponse
-from .imports import t
+from .imports import re, t
+from .websocket import WSConnection
 
 Scope = t.MutableMapping[str, t.Any]
 Message = t.MutableMapping[str, t.Any]
@@ -7,7 +8,8 @@ Message = t.MutableMapping[str, t.Any]
 Receive = t.Callable[[], t.Awaitable[Message]]
 Send = t.Callable[[Message], t.Awaitable[None]]
 ASGIApp = t.Callable[[Scope, Receive, Send], t.Awaitable[None]]
-HTTPCallback = t.Callable[[HTTPRequest, str], HTTPResponse]
+HTTPCallback = t.Callable[[HTTPRequest, str], t.Awaitable[HTTPResponse]]
+WSCallback = t.Callable[[WSConnection, str], t.Awaitable[None | HTTPResponse]]
 
 
 class MiddlewareType(t.Protocol):
@@ -23,4 +25,11 @@ class MiddlewareType(t.Protocol):
 
     @app.setter
     def app(self, app: ASGIApp) -> None:
+        ...
+
+
+class CastType(t.Protocol):
+    pattern: str | re.Pattern = ""
+
+    def parse(self, segment: str) -> t.Any:
         ...

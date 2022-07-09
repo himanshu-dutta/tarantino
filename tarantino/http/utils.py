@@ -65,6 +65,17 @@ class _HTTPStatusCode:
 
 
 class _HTTPMethods:
+    _methods = [
+        "GET",
+        "HEAD",
+        "POST",
+        "PUT",
+        "DELETE",
+        "CONNECT",
+        "OPTIONS",
+        "TRACE",
+        "PATCH",
+    ]
     GET = "GET"
     HEAD = "HEAD"
     POST = "POST"
@@ -74,6 +85,9 @@ class _HTTPMethods:
     OPTIONS = "OPTIONS"
     TRACE = "TRACE"
     PATCH = "PATCH"
+
+    def __dir__(self):
+        return [method.lower() for method in self._methods]
 
 
 HTTPStatusCode = _HTTPStatusCode()

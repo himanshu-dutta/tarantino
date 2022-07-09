@@ -1,18 +1,16 @@
-from ._types import MiddlewareType
-from .http import HTTPRequest, HTTPResponse
+from ._types import CastType, MiddlewareType
+from .http import HTTPMethods, HTTPRequest, HTTPResponse
 from .imports import t
-from .router import Router
+from .router import Route, Router
 from .websocket import WSConnection
-
-_protocols = ["http", "websocket"]
-PROTOCOLS_TYPE = t.Literal["http", "websocket"]
 
 
 class Tarantino:
+    method_names = dir(HTTPMethods) + ["websocket"]
+
     def __init__(self, name, middlewares: t.Sequence[MiddlewareType] = None):
         self.name = name
-        self.http_router = Router()
-        self.ws_router = Router()
+        self.router = Router()
 
         setattr(self, "app", self.build_middleware_stack(middlewares))
 
@@ -26,44 +24,107 @@ class Tarantino:
 
         return app
 
-    def register_route(self, uri, protocol: PROTOCOLS_TYPE = "http"):
-        def _outer(fn):
-            if protocol not in _protocols:
-                raise ValueError(f"Invalid protocol type: {protocol}")
+    def register_cast(self, cast_name: str, cast: CastType):
+        self.router.register_cast(cast_name, cast)
 
-            if protocol == "http":
-                self.http_router.add(uri, fn)
-            elif protocol == "websocket":
-                self.ws_router.add(uri, fn)
+    def register_route(self, path: str, methods: t.List[str]):
+        def _wrapper(fn):
+            for method in methods:
+                if method not in self.method_names:
+                    raise ValueError(f"Invalid method: {method}")
+
+            route = self.router.setdefault_route(path, Route(path))
+            for method in methods:
+                setattr(route, method, fn)
 
             return fn
 
-        return _outer
+        return _wrapper
 
-    async def app(self, scope, receive, send):
+    def get(self, path: str):
+        return self.register_route(path, methods=["get"])
 
-        scope_type = scope["type"]
+    def head(self, path: str):
+        return self.register_route(path, methods=["head"])
 
-        if scope_type == "http":
+    def post(self, path: str):
+        return self.register_route(path, methods=["post"])
 
-            events = list()
-            while True:
-                event = await receive()
-                if event["type"] != "http.request":
-                    raise RuntimeError(
-                        'Expected to receive more ASGI "http.request" event.'
-                    )
-                events.append(event)
-                if not event["more_body"]:
-                    break
-            request = HTTPRequest(scope, events)
+    def put(self, path: str):
+        return self.register_route(path, methods=["put"])
 
-            cb, args = self.http_router.find(request.uri)
-            if cb is None:
-                err = 'No callback found for the path: "%s"'
-                raise NotImplementedError(err % request.uri)
+    def delete(self, path: str):
+        return self.register_route(path, methods=["delete"])
 
-            response = await cb(request, *args)
+    def connect(self, path: str):
+        return self.register_route(path, methods=["connect"])
+
+    def options(self, path: str):
+        return self.register_route(path, methods=["options"])
+
+    def trace(self, path: str):
+        return self.register_route(path, methods=["trace"])
+
+    def patch(self, path: str):
+        return self.register_route(path, methods=["patch"])
+
+    def websocket(self, path: str):
+        return self.register_route(path, methods=["websocket"])
+
+    async def http_handler(self, scope, receive, send):
+        events = list()
+
+        while True:
+            event = await receive()
+            if event["type"] != "http.request":
+                raise RuntimeError(
+                    'Expected to receive more ASGI "http.request" event.'
+                )
+            events.append(event)
+            if not event["more_body"]:
+                break
+
+        request = HTTPRequest(scope, events)
+        route, kwargs = self.router.match_uri(request.path)
+
+        if route is None:
+            err = 'No callback found for the path: "%s"'
+            raise NotImplementedError(err % request.path)
+
+        response = await route(request, **kwargs)
+
+        assert issubclass(
+            type(response), HTTPResponse
+        ), f"Expected a response type: {HTTPResponse.__qualname__}"
+
+        await send(
+            {
+                "type": "http.response.start",
+                "status": response.get_status(),
+                "headers": response.get_headers(),
+            }
+        )
+
+        await send(
+            {
+                "type": "http.response.body",
+                "body": response.get_body(),
+                "more_body": False,
+            }
+        )
+
+    async def ws_handler(self, scope, receive, send):
+
+        conn = WSConnection(scope, receive, send)
+        route, kwargs = self.router.match_uri(conn.http_request.path)
+
+        if route is None:
+            err = 'No callback found for the path: "%s"'
+            raise NotImplementedError(err % conn.http_request.path)
+
+        response = await route(conn, **kwargs)
+
+        if response:
             assert issubclass(
                 type(response), HTTPResponse
             ), f"Expected a response type: {HTTPResponse.__qualname__}"
@@ -84,45 +145,71 @@ class Tarantino:
                 }
             )
 
+    async def app(self, scope, receive, send):
+        scope_type = scope["type"]
+
+        if scope_type == "http":
+            await self.http_handler(scope, receive, send)
         elif scope_type == "websocket":
-            uri = scope["path"]
-            conn = WSConnection(scope, receive, send)
-            cb, args = self.ws_router.find(uri)
-
-            if cb is None:
-                err = 'No callback found for the path: "%s"'
-                raise NotImplementedError(err % uri)
-
-            await cb(conn, *args)
+            await self.ws_handler(scope, receive, send)
+        else:
+            raise ValueError(f"Invalid scope type: {scope_type}")
 
     async def __call__(self, scope, receive, send):
         return await self.app(scope, receive, send)
 
     def register_subapp(self, subapp: "SubApp"):
-        self.http_router.merge(subapp.prefix, subapp.http_router)
-        self.ws_router.merge(subapp.prefix, subapp.ws_router)
+        self.router.merge_router(subapp.prefix, subapp.router)
 
 
 class SubApp:
     def __init__(self, prefix):
         self.prefix = prefix
-        self.http_router = Router()
-        self.ws_router = Router()
+        self.router = Router()
 
-    def register_route(self, uri, protocol: PROTOCOLS_TYPE = "http"):
-        def _outer(fn):
-            if protocol not in _protocols:
-                raise ValueError(f"Invalid protocol type: {protocol}")
+    def register_route(self, path, methods: t.List[str] = ["get"]):
+        def _wrapper(fn):
+            for method in methods:
+                if method not in self.method_names:
+                    raise ValueError(f"Invalid method: {method}")
 
-            if protocol == "http":
-                self.http_router.add(uri, fn)
-            elif protocol == "websocket":
-                self.ws_router.add(uri, fn)
+            route = self.router.setdefault_route(path, Route(path))
+            for method in methods:
+                setattr(route, method, fn)
 
             return fn
 
-        return _outer
+        return _wrapper
+
+    def get(self, path: str):
+        return self.register_route(path, methods=["get"])
+
+    def head(self, path: str):
+        return self.register_route(path, methods=["head"])
+
+    def post(self, path: str):
+        return self.register_route(path, methods=["post"])
+
+    def put(self, path: str):
+        return self.register_route(path, methods=["put"])
+
+    def delete(self, path: str):
+        return self.register_route(path, methods=["delete"])
+
+    def connect(self, path: str):
+        return self.register_route(path, methods=["connect"])
+
+    def options(self, path: str):
+        return self.register_route(path, methods=["options"])
+
+    def trace(self, path: str):
+        return self.register_route(path, methods=["trace"])
+
+    def patch(self, path: str):
+        return self.register_route(path, methods=["patch"])
+
+    def websocket(self, path: str):
+        return self.register_route(path, methods=["websocket"])
 
     def register_subapp(self, subapp: "SubApp"):
-        self.http_router.merge(subapp.prefix, subapp.http_router)
-        self.ws_router.merge(subapp.prefix, subapp.ws_router)
+        self.router.merge_router(subapp.prefix, subapp.router)

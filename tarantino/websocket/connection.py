@@ -19,10 +19,9 @@ class Connection:
     def __init__(self, scope, receive, send):
         self.http_request = HTTPRequest(scope, None)
 
-        self.connection_scope = scope
+        self.scope = scope
         self.asgi_receive = receive
         self.asgi_send = send
-        self.msg = None
 
         self.connection_state = ConnecionState.CONNECTING
 
@@ -58,7 +57,8 @@ class Connection:
         self.connection_state = ConnecionState.CLOSED
 
     async def send(self, *, text_data: str = None, bytes_data: bytes = None):
-        """Only one of the two parameters: `text_data` and `bytes_data` must be non-`None`."""
+        """Only one of the two parameters: `text_data` and `bytes_data` must be
+        non-`None`."""
         if self.connection_state != ConnecionState.OPENED:
             msg = "Unexpected call to send to closed connection"
             raise RuntimeError(msg)

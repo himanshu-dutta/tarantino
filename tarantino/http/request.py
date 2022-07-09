@@ -1,9 +1,9 @@
-from ..imports import deepcopy, json, parse, t
+from ..imports import json, parse, t
 
 
 class Request:
     def __init__(self, scope: dict, events: t.List[dict] = None):
-        self.scope = deepcopy(scope)
+        self.scope = scope
 
         self.query_params = parse.parse_qs(self.scope.get("query_string", b"").decode())
         self.headers = self.parse_headers(self.scope.get("headers"))
@@ -12,7 +12,7 @@ class Request:
         self.client = self.scope["client"]
         self.http_version = self.scope["http_version"]
         self.method = self.scope.get("method")
-        self.uri = self.scope.get("path")
+        self.path = self.scope.get("path")
         self.content_length = self.headers.get("content-length")
         self.content_type = self.headers.get("content-type")
 
