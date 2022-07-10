@@ -12,7 +12,7 @@ HTTPCallback = t.Callable[[HTTPRequest, str], t.Awaitable[HTTPResponse]]
 WSCallback = t.Callable[[WSConnection, str], t.Awaitable[None | HTTPResponse]]
 
 
-class MiddlewareType(t.Protocol):
+class Middleware(t.Protocol):
     app: ASGIApp = ...
 
     def __init__(self, **options: t.Any):
