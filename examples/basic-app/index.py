@@ -5,7 +5,7 @@ import blog.index as blog
 
 from tarantino import Tarantino
 from tarantino.authentication import authenticate
-from tarantino.middleware import default_middlewares
+from tarantino.middleware import default_middlewares, cors
 from tarantino.http import (
     HTTP200Response,
     HTTPRequest,
@@ -14,7 +14,17 @@ from tarantino.http import (
     HTTPStatusCode,
 )
 
-app = Tarantino("basic", middlewares=default_middlewares)
+app = Tarantino(
+    "basic",
+    middlewares=default_middlewares
+    + [
+        cors.Cors(
+            allow_origins=["http://localhost:8080"],
+            allow_headers=["*"],
+            allow_credentials=True,
+        )
+    ],
+)
 
 
 app.register_subapp(salutation.subapp)
@@ -41,6 +51,14 @@ async def index(request: HTTPRequest):
     """
 
     return HTTP200Response(body)
+
+
+@app.post("/")
+@authenticate
+async def index(request: HTTPRequest):
+    body = await request.body(as_str=True)
+    print("POST BODY: ", body)
+    return HTTP200Response(f"PING BACK THE BODY: {body}")
 
 
 @app.get("/user/profile/{username}")
