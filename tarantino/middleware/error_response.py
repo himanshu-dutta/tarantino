@@ -63,9 +63,12 @@ class ErrorResponse(Middleware):
         self.app: ASGIApp = None
 
     async def __call__(self, scope, receive, send):
-        send = self.error_send(send)
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-        return await self.app(scope, receive, send)
+        send = self.error_send(send)
+        await self.app(scope, receive, send)
 
     def error_send(self, send: Send, has_sent_body: bool = False) -> Send:
         async def _wrapper(message: Message):
