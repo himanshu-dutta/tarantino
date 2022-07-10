@@ -1,5 +1,5 @@
 from .._types import ASGIApp, Message, MiddlewareType, Send
-from ..http import HTTPStatusCode
+from ..http import HTTPStatusCode, Headers
 
 response_template = """
 <!DOCTYPE html>
@@ -75,13 +75,23 @@ class ErrorResponse(MiddlewareType):
 
             if message["type"] == "http.response.start" and message["status"] >= 400:
                 status_code = message["status"]
+                headers = Headers(headers=message["headers"])
 
                 response = response_template % (
                     status_code,
                     status_code,
                     HTTPStatusCode.get_status_message(status_code),
                 )
-                response = response.encode()
+                response = response.encode("utf-8")
+
+                headers.set("content-length", len(response))
+                headers.set("content-type", "text/html; charset=utf8")
+
+                message = {
+                    "type": "http.response.start",
+                    "status": status_code,
+                    "headers": headers.getlist(),
+                }
 
                 await send(message)
 
