@@ -8,12 +8,12 @@ class Headers(t.Mapping[str, str]):
         headers: t.Mapping[str, str | t.Sequence[str]] | None = None,
         scope: t.MutableMapping[str, t.Any] | None = None,
     ):
-        if headers != None and scope != None:
+        if headers is not None and scope is not None:
             raise AssertionError("Only one of headers and scope should be set.")
 
         self._headers = []
 
-        if headers == None and scope == None:
+        if headers is None and scope is None:
             return
 
         if headers:

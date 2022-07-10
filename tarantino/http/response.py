@@ -1,7 +1,7 @@
 from ..imports import datetime, json, t
 from .cookie import Cookie
-from .utils import HTTPStatusCode
 from .headers import Headers
+from .utils import HTTPStatusCode
 
 
 class Response:
