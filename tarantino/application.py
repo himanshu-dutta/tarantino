@@ -1,4 +1,4 @@
-from ._types import CastType, MiddlewareType
+from ._types import CastType, Middleware
 from .http import HTTPMethods, HTTPRequest, HTTPResponse
 from .imports import t
 from .router import Route, Router
@@ -8,13 +8,13 @@ from .websocket import WSConnection
 class Tarantino:
     method_names = dir(HTTPMethods) + ["websocket"]
 
-    def __init__(self, name, middlewares: t.Sequence[MiddlewareType] = None):
+    def __init__(self, name, middlewares: t.Sequence[Middleware] = None):
         self.name = name
         self.router = Router()
 
         self.asgi_app = self.build_middleware_stack(middlewares)
 
-    def build_middleware_stack(self, middlewares: t.Sequence[MiddlewareType] = None):
+    def build_middleware_stack(self, middlewares: t.Sequence[Middleware] = None):
         app = self.app
 
         if middlewares:
@@ -53,7 +53,6 @@ class Tarantino:
             events.append(event)
             if not event["more_body"]:
                 break
-
         request = HTTPRequest(scope, events)
         route, kwargs = self.router.match_uri(request.path)
 
