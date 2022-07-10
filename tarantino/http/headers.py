@@ -94,6 +94,16 @@ class Headers(t.Mapping[str, str]):
             else:
                 self._headers[replace_idx] = (self.encode(key), self.encode(value))
 
+    def pop(self, key: str | bytes):
+        key = self.encode(key)
+        pop_idxs = []
+        for idx, (k, v) in enumerate(self._headers):
+            if k == key:
+                pop_idxs.append(idx)
+
+        for idx in pop_idxs:
+            self._headers.pop(idx)
+
     def setdefault(self, key: str | bytes, default: t.Any = None, decode=False):
         try:
             return self.decode(self[key]) if decode else self[key]
