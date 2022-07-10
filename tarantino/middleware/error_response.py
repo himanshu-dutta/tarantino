@@ -1,5 +1,5 @@
 from .._types import ASGIApp, Message, Middleware, Send
-from ..http import HTTPStatusCode, Headers
+from ..http import Headers, HTTPStatusCode
 
 response_template = """
 <!DOCTYPE html>
