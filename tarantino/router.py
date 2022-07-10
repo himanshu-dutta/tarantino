@@ -39,7 +39,7 @@ class Route:
 
     async def default_options_handler(self):
         headers = list()
-        allowed_methods = []
+        allowed_methods = ["OPTIONS"]
 
         for method in dir(HTTPMethods):
             if getattr(self, method) is not None:
