@@ -1,4 +1,4 @@
-from .._types import ASGIApp, Message, MiddlewareType, Send
+from .._types import ASGIApp, Message, Middleware, Send
 from ..http import HTTPStatusCode, Headers
 
 response_template = """
@@ -58,7 +58,7 @@ response_template = """
 """
 
 
-class ErrorResponse(MiddlewareType):
+class ErrorResponse(Middleware):
     def __init__(self):
         self.app: ASGIApp = None
 
