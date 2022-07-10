@@ -1,4 +1,5 @@
 from ..imports import json, parse, t
+from .headers import Headers
 
 
 class Request:
@@ -6,15 +7,15 @@ class Request:
         self.scope = scope
 
         self.query_params = parse.parse_qs(self.scope.get("query_string", b"").decode())
-        self.headers = self.parse_headers(self.scope.get("headers"))
-        self.cookies = self.parse_cookies(self.headers.get("cookie", ""))
+        self.headers = Headers(scope=scope)
+        self.cookies = self.parse_cookies(self.headers.get("cookie", "", decode=True))
 
         self.client = self.scope["client"]
         self.http_version = self.scope["http_version"]
         self.method = self.scope.get("method")
         self.path = self.scope.get("path")
-        self.content_length = self.headers.get("content-length")
-        self.content_type = self.headers.get("content-type")
+        self.content_length = self.headers.get("content-length", decode=True)
+        self.content_type = self.headers.get("content-type", decode=True)
 
         self._body = self.parse_body(events) if events else bytes()
 
@@ -33,27 +34,9 @@ class Request:
         return json.loads(await self.body())
 
     @staticmethod
-    def parse_headers(header_list) -> t.Dict[str, str]:
-        headers = dict()
-
-        def _(kv):
-            k = kv[0]
-            if isinstance(k, bytes):
-                k = k.decode("utf-8")
-
-            v = kv[1]
-            if isinstance(v, bytes):
-                v = v.decode("utf-8")
-
-            headers[k] = v
-
-        list(map(_, header_list))
-        return headers
-
-    @staticmethod
     def parse_cookies(cookie_str: str) -> t.Dict[str, str]:
         if isinstance(cookie_str, bytes):
-            cookie_str = cookie_str.decode("utf-8")
+            cookie_str = cookie_str.decode("latin-1")
         cookie_strs = cookie_str.split("; ")
 
         cookies = dict()

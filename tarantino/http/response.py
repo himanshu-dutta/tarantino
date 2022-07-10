@@ -1,6 +1,7 @@
 from ..imports import datetime, json, t
 from .cookie import Cookie
 from .utils import HTTPStatusCode
+from .headers import Headers
 
 
 class Response:
@@ -8,16 +9,17 @@ class Response:
         self,
         body: str | bytes,
         status: int,
-        headers: t.List[t.Tuple[bytes, bytes]] = [],
+        headers: Headers | t.Dict[str, str] = None,
     ):
         self.body = body
         self.status = status
-        self.headers = headers
+        self.headers = (
+            headers if isinstance(headers, Headers) else Headers(headers=headers)
+        )
 
         self.cookies: t.List[Cookie] = list()
 
         assert self.assert_status_code(), f"Invalid status code: {self.status}"
-        assert self.assert_headers(), f"Invalid headers: {self.headers}"
 
     def assert_status_code(self):
         http_dir = dir(HTTPStatusCode)
@@ -53,19 +55,15 @@ class Response:
         )
         self.cookies.append(cookie.to_header())
 
-    def assert_headers(self):
-        return True
-
     def get_status(self):
         return self.status
 
     def get_headers(self):
-        return self.headers + self.cookies
+        return self.headers.getlist() + self.cookies
 
     def get_body(self):
         if isinstance(self.body, str):
             body = self.body.encode("utf-8")
-
         return body
 
 
@@ -82,9 +80,9 @@ class HTTP200Response(Response):
 
 
 class HTTP404Response(Response):
-    def __init__(self, body: str | bytes = ""):
-        headers = [(b"content-type", b"text/html; charset=utf8")]
-        super().__init__(body, HTTPStatusCode.STATUS_404_NOT_FOUND, headers)
+    def __init__(self):
+        headers = [(b"content-length", 0)]
+        super().__init__("", HTTPStatusCode.STATUS_404_NOT_FOUND, headers)
 
 
 class JSONResponse(Response):
