@@ -1,6 +1,6 @@
 from tarantino import SubApp
 from tarantino.authentication import AuthenticationResponse, Credentials
-from tarantino.http import HTTP404Response
+from tarantino.http import HTTPResponse, HTTPStatusCode
 
 subapp = SubApp(prefix="/login")
 
@@ -19,7 +19,7 @@ async def login(request):
         password = password[0]
 
     if not username or not password:
-        return HTTP404Response("Invalid Login Credentials")
+        return HTTPResponse("", status=HTTPStatusCode.STATUS_400_BAD_REQUEST)
 
     creds = Credentials(username=username, name=name, password=password)
     return AuthenticationResponse(request, creds, redirect="/")
