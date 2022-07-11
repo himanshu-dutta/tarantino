@@ -1,4 +1,5 @@
-from tarantino.router import *
+from tarantino.router import Router
+from tarantino.endpoint import Endpoint
 
 
 def test_absolute_route():
@@ -25,7 +26,7 @@ def test_absolute_route():
         path = test_case["path"]
         uri = test_case["uri"]
         kwargs = test_case["kwargs"]
-        route = Route(path)
+        route = Endpoint(path)
 
         router.add_route(path, route)
 

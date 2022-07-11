@@ -1,6 +1,7 @@
 from tarantino.http import HTTPMethods, HTTPRequest, HTTPResponse
 from tarantino.imports import t
-from tarantino.router import Route, Router
+from tarantino.router import Router
+from tarantino.endpoint import Endpoint
 from tarantino.types import CastType, Middleware
 from tarantino.websocket import WSConnection
 
@@ -27,15 +28,15 @@ class Tarantino:
     def register_cast(self, cast_name: str, cast: CastType):
         self.router.register_cast(cast_name, cast)
 
-    def register_route(self, path: str, methods: t.List[str]):
+    def register_endpoint(self, path: str, methods: t.List[str]):
         def _wrapper(fn):
             for method in methods:
                 if method not in self.method_names:
                     raise ValueError(f"Invalid method: {method}")
 
-            route = self.router.setdefault_route(path, Route(path))
+            endpoint = self.router.setdefault_endpoint(path, Endpoint(path))
             for method in methods:
-                setattr(route, method, fn)
+                setattr(endpoint, method, fn)
 
             return fn
 
@@ -54,13 +55,13 @@ class Tarantino:
             if not event["more_body"]:
                 break
         request = HTTPRequest(scope, events)
-        route, kwargs = self.router.match_uri(request.path)
+        endpoint, kwargs = self.router.match_uri(request.path)
 
-        if route is None:
+        if endpoint is None:
             err = 'No callback found for the path: "%s"'
             raise NotImplementedError(err % request.path)
 
-        response = await route(request, **kwargs)
+        response = await endpoint(request, **kwargs)
 
         assert issubclass(
             type(response), HTTPResponse
@@ -85,13 +86,13 @@ class Tarantino:
     async def ws_handler(self, scope, receive, send):
 
         conn = WSConnection(scope, receive, send)
-        route, kwargs = self.router.match_uri(conn.http_request.path)
+        endpoint, kwargs = self.router.match_uri(conn.http_request.path)
 
-        if route is None:
+        if endpoint is None:
             err = 'No callback found for the path: "%s"'
             raise NotImplementedError(err % conn.http_request.path)
 
-        response = await route(conn, **kwargs)
+        response = await endpoint(conn, **kwargs)
 
         if response:
             assert issubclass(
@@ -132,34 +133,34 @@ class Tarantino:
         self.router.merge_router(subapp.prefix, subapp.router)
 
     def get(self, path: str):
-        return self.register_route(path, methods=["get"])
+        return self.register_endpoint(path, methods=["get"])
 
     def head(self, path: str):
-        return self.register_route(path, methods=["head"])
+        return self.register_endpoint(path, methods=["head"])
 
     def post(self, path: str):
-        return self.register_route(path, methods=["post"])
+        return self.register_endpoint(path, methods=["post"])
 
     def put(self, path: str):
-        return self.register_route(path, methods=["put"])
+        return self.register_endpoint(path, methods=["put"])
 
     def delete(self, path: str):
-        return self.register_route(path, methods=["delete"])
+        return self.register_endpoint(path, methods=["delete"])
 
     def connect(self, path: str):
-        return self.register_route(path, methods=["connect"])
+        return self.register_endpoint(path, methods=["connect"])
 
     def options(self, path: str):
-        return self.register_route(path, methods=["options"])
+        return self.register_endpoint(path, methods=["options"])
 
     def trace(self, path: str):
-        return self.register_route(path, methods=["trace"])
+        return self.register_endpoint(path, methods=["trace"])
 
     def patch(self, path: str):
-        return self.register_route(path, methods=["patch"])
+        return self.register_endpoint(path, methods=["patch"])
 
     def websocket(self, path: str):
-        return self.register_route(path, methods=["websocket"])
+        return self.register_endpoint(path, methods=["websocket"])
 
 
 class SubApp:
@@ -172,49 +173,49 @@ class SubApp:
     def register_cast(self, cast_name: str, cast: CastType):
         self.router.register_cast(cast_name, cast)
 
-    def register_route(self, path, methods: t.List[str] = ["get"]):
+    def register_endpoint(self, path: str, methods: t.List[str]):
         def _wrapper(fn):
             for method in methods:
                 if method not in self.method_names:
                     raise ValueError(f"Invalid method: {method}")
 
-            route = self.router.setdefault_route(path, Route(path))
+            endpoint = self.router.setdefault_endpoint(path, Endpoint(path))
             for method in methods:
-                setattr(route, method, fn)
+                setattr(endpoint, method, fn)
 
             return fn
 
         return _wrapper
 
     def get(self, path: str):
-        return self.register_route(path, methods=["get"])
+        return self.register_endpoint(path, methods=["get"])
 
     def head(self, path: str):
-        return self.register_route(path, methods=["head"])
+        return self.register_endpoint(path, methods=["head"])
 
     def post(self, path: str):
-        return self.register_route(path, methods=["post"])
+        return self.register_endpoint(path, methods=["post"])
 
     def put(self, path: str):
-        return self.register_route(path, methods=["put"])
+        return self.register_endpoint(path, methods=["put"])
 
     def delete(self, path: str):
-        return self.register_route(path, methods=["delete"])
+        return self.register_endpoint(path, methods=["delete"])
 
     def connect(self, path: str):
-        return self.register_route(path, methods=["connect"])
+        return self.register_endpoint(path, methods=["connect"])
 
     def options(self, path: str):
-        return self.register_route(path, methods=["options"])
+        return self.register_endpoint(path, methods=["options"])
 
     def trace(self, path: str):
-        return self.register_route(path, methods=["trace"])
+        return self.register_endpoint(path, methods=["trace"])
 
     def patch(self, path: str):
-        return self.register_route(path, methods=["patch"])
+        return self.register_endpoint(path, methods=["patch"])
 
     def websocket(self, path: str):
-        return self.register_route(path, methods=["websocket"])
+        return self.register_endpoint(path, methods=["websocket"])
 
     def register_subapp(self, subapp: "SubApp"):
         self.router.merge_router(subapp.prefix, subapp.router)

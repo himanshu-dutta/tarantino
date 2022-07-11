@@ -1,84 +1,11 @@
 from tarantino.casts import CastRegistry
-from tarantino.http import HTTPMethods, HTTPRequest, HTTPResponse, HTTPStatusCode
 from tarantino.imports import t
-from tarantino.types import CastType, HTTPCallback, WSCallback
-from tarantino.websocket import WSConnection
-
-
-class Route:
-    """`Route` consists of mapping between the `HTTP` methods and their
-    respective handlers.
-
-    It also maps `websocket` request to a handler.
-    """
-
-    method_names = dir(HTTPMethods) + ["websocket"]
-
-    def __init__(self, path: str):
-        self.path = path
-        self.handlers: t.Dict[str, HTTPCallback | WSCallback] = dict()
-
-    def __setattr__(self, name, value):
-        if name in self.method_names:
-            self.handlers[name] = value
-        else:
-            super().__setattr__(name, value)
-
-    def __getattr__(self, name):
-        if name in self.method_names:
-            return self.handlers.get(name)
-        else:
-            raise AttributeError(
-                f"Invalid method name: {name}. Allowed methods are:"
-                f" {self.method_names}"
-            )
-
-    async def not_allowed_handler(self, status_code: int):
-        http_method_not_allowed_response = HTTPResponse("", status_code, [])
-        return http_method_not_allowed_response
-
-    async def default_options_handler(self):
-        headers = list()
-        allowed_methods = ["OPTIONS"]
-
-        for method in dir(HTTPMethods):
-            if getattr(self, method) is not None:
-                allowed_methods.append(method.upper())
-
-        headers = [(b"allow", ", ".join(allowed_methods).encode())]
-
-        return HTTPResponse("", HTTPStatusCode.STATUS_204_NO_CONTENT, headers)
-
-    async def default_handler(
-        self, conn_request: HTTPRequest | WSConnection, **kwargs
-    ) -> t.Awaitable[HTTPResponse]:
-        scope_type = conn_request.scope["type"]
-        method_name = conn_request.scope.get("method", "").lower()
-
-        if scope_type == "http":
-            if method_name == "options":
-                return await self.default_options_handler()
-            return await self.not_allowed_handler(
-                HTTPStatusCode.STATUS_405_METHOD_NOT_ALLOWED
-            )
-
-        elif scope_type == "websocket":
-            return await self.not_allowed_handler(HTTPStatusCode.STATUS_403_FORBIDDEN)
-
-        else:
-            raise ValueError(f"Invalid scope type: {scope_type}")
-
-    async def __call__(self, conn_request: HTTPRequest | WSConnection, **kwargs):
-        method = str(getattr(conn_request, "method", "websocket")).lower()
-        handler = getattr(self, method)
-        if not handler:
-            handler = self.default_handler
-
-        return await handler(conn_request, **kwargs)
+from tarantino.types import CastType
+from tarantino.endpoint import Endpoint
 
 
 class RouterNode:
-    """A `RouterNode` consists of three attributes: a `Route` and two dicts.
+    """A `RouterNode` consists of three attributes: a `Endpoint` and two dicts.
 
     The first dict matches the an absolute path segment name, such as,
     `user` in `/api/user/profile`, to a `RouterNode`. The second dict
@@ -92,12 +19,12 @@ class RouterNode:
             str, t.Tuple[str, "RouterNode"]
         ] = dict()
 
-        self.route: Route | None = None
+        self.endpoint: Endpoint | None = None
         self.cast_registry = cast_registry
 
     @property
-    def has_route(self):
-        return self.route is not None
+    def has_endpoint(self):
+        return self.endpoint is not None
 
     def add_absolute_path_segment(self, segment: str, node: "RouterNode"):
         if self.get_absolute_path_segment(segment):
@@ -200,15 +127,15 @@ class Router:
         self.cast_registry = CastRegistry()
         self.root_node: RouterNode = RouterNode(self.cast_registry)
 
-    def add_route(self, path: str, route: Route):
+    def add_endpoint(self, path: str, endpoint: Endpoint):
         path_segments = self.parse_path(path)
         node = self.root_node
 
         for segment in path_segments:
             node = node.setdefault(segment, RouterNode(self.cast_registry))
-        node.route = route
+        node.endpoint = endpoint
 
-    def get_route(self, path: str):
+    def get_endpoint(self, path: str):
         path_segments = self.parse_path(path)
         node = self.root_node
 
@@ -217,23 +144,21 @@ class Router:
             if not node:
                 return None
 
-        return node.route
+        return node.endpoint
 
-    def setdefault_route(self, path: str, route: Route):
-        matched_route = self.get_route(path)
-        if not matched_route:
-            matched_route = route
-            self.add_route(path, route)
-        return matched_route
+    def setdefault_endpoint(self, path: str, endpoint: Endpoint):
+        matched_endpoint = self.get_endpoint(path)
+        if not matched_endpoint:
+            matched_endpoint = endpoint
+            self.add_endpoint(path, endpoint)
+        return matched_endpoint
 
     def match_uri(
         self, uri: str
-    ) -> t.Tuple[t.Optional[Route], t.Dict[t.Optional[str], t.Any]] | t.Tuple[
-        None, None
-    ]:
+    ) -> t.Tuple[Endpoint, t.Dict[str, t.Any]] | t.Tuple[None, None]:
         uri_segments = self.parse_path(uri)
         node = self.root_node
-        kwargs: t.Dict[t.Optional[str], t.Any] = dict()
+        kwargs: t.Dict[str, t.Any] = dict()
 
         for segment in uri_segments:
             next_node = node.match_absolute_path_segment(segment)
@@ -249,7 +174,7 @@ class Router:
 
             return None, None
 
-        return node.route, kwargs
+        return node.endpoint, kwargs
 
     def merge_router(self, path_prefix: str, o: "Router"):
         path_prefix_segments = self.parse_path(path_prefix)
