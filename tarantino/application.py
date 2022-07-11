@@ -1,7 +1,7 @@
+from tarantino.endpoint import Endpoint
 from tarantino.http import HTTPMethods, HTTPRequest, HTTPResponse
 from tarantino.imports import t
 from tarantino.router import Router
-from tarantino.endpoint import Endpoint
 from tarantino.types import CastType, Middleware
 from tarantino.websocket import WSConnection
 

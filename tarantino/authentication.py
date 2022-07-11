@@ -1,4 +1,4 @@
-from tarantino.http import HTTPRequest, HTTPResponse, HTTPStatusCode, Headers
+from tarantino.http import Headers, HTTPRequest, HTTPResponse, HTTPStatusCode
 from tarantino.imports import datetime, hashlib, t, wraps
 from tarantino.types import HTTPCallback
 

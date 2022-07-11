@@ -1,7 +1,7 @@
 from tarantino.casts import CastRegistry
+from tarantino.endpoint import Endpoint
 from tarantino.imports import t
 from tarantino.types import CastType
-from tarantino.endpoint import Endpoint
 
 
 class RouterNode:
