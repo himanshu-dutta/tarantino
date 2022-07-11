@@ -54,7 +54,7 @@ class AuthenticationResponse(HTTPResponse):
         auth_token = hashlib.sha256(creds.dump().encode("utf-8")).hexdigest()
         _token_registry[auth_token] = creds
 
-        headers = Headers
+        headers = Headers()
         status_code = HTTPStatusCode.STATUS_200_OK
 
         body = ""
