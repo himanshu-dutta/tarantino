@@ -1,4 +1,4 @@
-from tarantino.http import HTTPRequest, HTTPResponse, HTTPStatusCode
+from tarantino.http import HTTPRequest, HTTPResponse, HTTPStatusCode, Headers
 from tarantino.imports import datetime, hashlib, t, wraps
 from tarantino.types import HTTPCallback
 
@@ -54,12 +54,12 @@ class AuthenticationResponse(HTTPResponse):
         auth_token = hashlib.sha256(creds.dump().encode("utf-8")).hexdigest()
         _token_registry[auth_token] = creds
 
-        headers = []
+        headers = Headers
         status_code = HTTPStatusCode.STATUS_200_OK
 
         body = ""
         if redirect:
-            headers.append((b"location", redirect.encode("utf-8")))
+            headers.set("location", redirect.encode("utf-8"))
             status_code = HTTPStatusCode.STATUS_307_TEMPORARY_REDIRECT
 
         super().__init__(body=body, status=status_code, headers=headers)
