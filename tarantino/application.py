@@ -1,8 +1,8 @@
-from ._types import CastType, Middleware
-from .http import HTTPMethods, HTTPRequest, HTTPResponse
-from .imports import t
-from .router import Route, Router
-from .websocket import WSConnection
+from tarantino.http import HTTPMethods, HTTPRequest, HTTPResponse
+from tarantino.imports import t
+from tarantino.router import Route, Router
+from tarantino.types import CastType, Middleware
+from tarantino.websocket import WSConnection
 
 
 class Tarantino:

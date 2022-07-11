@@ -1,6 +1,6 @@
-from ._types import HTTPCallback
-from .http import HTTPRequest, HTTPResponse, HTTPStatusCode
-from .imports import datetime, hashlib, t, wraps
+from tarantino.http import HTTPRequest, HTTPResponse, HTTPStatusCode
+from tarantino.imports import datetime, hashlib, t, wraps
+from tarantino.types import HTTPCallback
 
 _token_registry: t.Dict[str, "Credentials"] = dict()
 COOKIE_NAME = "_sessionid"

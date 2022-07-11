@@ -1,4 +1,4 @@
-from ..imports import datetime, t
+from tarantino.imports import datetime, t
 
 
 class Cookie:

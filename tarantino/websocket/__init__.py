@@ -1,2 +1,2 @@
-from .connection import Connection as WSConnection
-from .utils import WSStatusCode
+from tarantino.websocket.connection import Connection as WSConnection
+from tarantino.websocket.utils import WSStatusCode

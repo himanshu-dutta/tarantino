@@ -1,6 +1,6 @@
-from ..http import HTTPRequest
-from ..imports import enum, json, t
-from .utils import WSStatusCode
+from tarantino.http import HTTPRequest
+from tarantino.imports import enum, json, t
+from tarantino.websocket.utils import WSStatusCode
 
 
 class ConnecionState(enum.Enum):

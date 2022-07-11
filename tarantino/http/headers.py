@@ -1,7 +1,9 @@
-from ..imports import t
+from tarantino.imports import t
 
 
 class Headers(t.Mapping[str, str]):
+    encoding_type = "latin-1"
+
     def __init__(
         self,
         *,
@@ -11,7 +13,7 @@ class Headers(t.Mapping[str, str]):
         if headers is not None and scope is not None:
             raise AssertionError("Only one of headers and scope should be set.")
 
-        self._headers = []
+        self._headers: t.List[t.Tuple[bytes, bytes]] = []
 
         if headers is None and scope is None:
             return
@@ -33,11 +35,11 @@ class Headers(t.Mapping[str, str]):
         if scope:
             self._headers = scope["headers"]
 
-    def encode(self, s: str | bytes):
-        return s if isinstance(s, bytes) else str(s).encode("latin-1")
+    def encode(self, s: t.Any):
+        return s if isinstance(s, bytes) else bytes(s, encoding=self.encoding_type)
 
-    def decode(self, s: str | bytes):
-        return s if isinstance(s, str) else bytes(s).decode("latin-1")
+    def decode(self, s: bytes):
+        return s.decode(self.encoding_type)
 
     def __setitem__(self, key: str | bytes, value: str | bytes):
         key = self.encode(key)
@@ -53,7 +55,7 @@ class Headers(t.Mapping[str, str]):
                 values.append(v)
 
         if len(values) == 0:
-            raise KeyError(f"Invalid key: {key}")
+            raise KeyError(f"Invalid key: {self.decode(key)}")
 
         return values if len(values) > 1 else values[0]
 
@@ -108,7 +110,7 @@ class Headers(t.Mapping[str, str]):
         try:
             return self.decode(self[key]) if decode else self[key]
         except KeyError:
-            self[key] = default
+            self[key] = self.encode(default)
             return self.decode(self[key]) if decode else self[key]
 
     def getlist(self, decode=False):

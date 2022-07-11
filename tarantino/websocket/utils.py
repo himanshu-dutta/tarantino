@@ -1,4 +1,4 @@
-from ..imports import warnings
+from tarantino.imports import warnings
 
 
 class _WSStatusCode:

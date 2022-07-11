@@ -1,8 +1,8 @@
-from ._types import CastType, HTTPCallback, WSCallback
-from .casts import CastRegistry
-from .http import HTTPMethods, HTTPRequest, HTTPResponse, HTTPStatusCode
-from .imports import t
-from .websocket import WSConnection
+from tarantino.casts import CastRegistry
+from tarantino.http import HTTPMethods, HTTPRequest, HTTPResponse, HTTPStatusCode
+from tarantino.imports import t
+from tarantino.types import CastType, HTTPCallback, WSCallback
+from tarantino.websocket import WSConnection
 
 
 class Route:

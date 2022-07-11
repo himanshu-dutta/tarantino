@@ -1,5 +1,5 @@
-from ..imports import json, parse, t
-from .headers import Headers
+from tarantino.http.headers import Headers
+from tarantino.imports import json, parse, t
 
 
 class Request:

@@ -1,6 +1,6 @@
-from .._types import Message, Middleware, Send
-from ..http import Headers, HTTPStatusCode
-from ..imports import re, t
+from tarantino.http import Headers, HTTPStatusCode
+from tarantino.imports import re, t
+from tarantino.types import Message, Middleware, Send
 
 
 class Cors(Middleware):

@@ -1,5 +1,5 @@
-from ._types import CastType
-from .imports import re, t
+from tarantino.imports import re, t
+from tarantino.types import CastType
 
 
 class IntCast:

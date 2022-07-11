@@ -1,6 +1,6 @@
-from .http import HTTPRequest, HTTPResponse
-from .imports import re, t
-from .websocket import WSConnection
+from tarantino.http import HTTPRequest, HTTPResponse
+from tarantino.imports import re, t
+from tarantino.websocket import WSConnection
 
 Scope = t.MutableMapping[str, t.Any]
 Message = t.MutableMapping[str, t.Any]

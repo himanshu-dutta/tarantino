@@ -1,7 +1,7 @@
-from ..imports import datetime, json, t
-from .cookie import Cookie
-from .headers import Headers
-from .utils import HTTPStatusCode
+from tarantino.http.cookie import Cookie
+from tarantino.http.headers import Headers
+from tarantino.http.utils import HTTPStatusCode
+from tarantino.imports import datetime, json, t
 
 
 class Response:

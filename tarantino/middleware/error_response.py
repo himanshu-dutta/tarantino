@@ -1,5 +1,5 @@
-from .._types import ASGIApp, Message, Middleware, Send
-from ..http import Headers, HTTPStatusCode
+from tarantino.http import Headers, HTTPStatusCode
+from tarantino.types import ASGIApp, Message, Middleware, Send
 
 response_template = """
 <!DOCTYPE html>
