@@ -36,7 +36,7 @@ class Headers(t.Mapping[str, str]):
             self._headers = scope["headers"]
 
     def encode(self, s: t.Any):
-        return s if isinstance(s, bytes) else bytes(s, encoding=self.encoding_type)
+        return s if isinstance(s, bytes) else bytes(str(s), encoding=self.encoding_type)
 
     def decode(self, s: bytes):
         return s.decode(self.encoding_type)
