@@ -76,6 +76,13 @@ class _HTTPStatusCode:
 
         raise ValueError(f"Invalid status code: {status_code}")
 
+    def __dir__(self):
+        return [
+            attr_name
+            for attr_name in super().__dir__()
+            if attr_name.startswith("STATUS_")
+        ]
+
 
 class _HTTPMethods:
     _methods = [
