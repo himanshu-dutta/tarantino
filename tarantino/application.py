@@ -28,15 +28,17 @@ class Tarantino:
     def register_cast(self, cast_name: str, cast: CastType):
         self.router.register_cast(cast_name, cast)
 
-    def register_endpoint(self, path: str, methods: t.List[str]):
+    def register_endpoint(self, path: str, methods: t.List[str], *args, **kwargs):
         def _wrapper(fn):
             for method in methods:
                 if method not in self.method_names:
                     raise ValueError(f"Invalid method: {method}")
 
             endpoint = self.router.setdefault_endpoint(path, Endpoint(path))
+
+            handler = fn(*args, **kwargs) if isinstance(fn, type) else fn
             for method in methods:
-                setattr(endpoint, method, fn)
+                setattr(endpoint, method, handler)
 
             return fn
 
@@ -132,35 +134,35 @@ class Tarantino:
     def register_subapp(self, subapp: "SubApp"):
         self.router.merge_router(subapp.prefix, subapp.router)
 
-    def get(self, path: str):
-        return self.register_endpoint(path, methods=["get"])
+    def get(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["get"], *args, **kwargs)
 
-    def head(self, path: str):
-        return self.register_endpoint(path, methods=["head"])
+    def head(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["head"], *args, **kwargs)
 
-    def post(self, path: str):
-        return self.register_endpoint(path, methods=["post"])
+    def post(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["post"], *args, **kwargs)
 
-    def put(self, path: str):
-        return self.register_endpoint(path, methods=["put"])
+    def put(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["put"], *args, **kwargs)
 
-    def delete(self, path: str):
-        return self.register_endpoint(path, methods=["delete"])
+    def delete(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["delete"], *args, **kwargs)
 
-    def connect(self, path: str):
-        return self.register_endpoint(path, methods=["connect"])
+    def connect(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["connect"], *args, **kwargs)
 
-    def options(self, path: str):
-        return self.register_endpoint(path, methods=["options"])
+    def options(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["options"], *args, **kwargs)
 
-    def trace(self, path: str):
-        return self.register_endpoint(path, methods=["trace"])
+    def trace(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["trace"], *args, **kwargs)
 
-    def patch(self, path: str):
-        return self.register_endpoint(path, methods=["patch"])
+    def patch(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["patch"], *args, **kwargs)
 
-    def websocket(self, path: str):
-        return self.register_endpoint(path, methods=["websocket"])
+    def websocket(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["websocket"], *args, **kwargs)
 
 
 class SubApp:
@@ -173,49 +175,51 @@ class SubApp:
     def register_cast(self, cast_name: str, cast: CastType):
         self.router.register_cast(cast_name, cast)
 
-    def register_endpoint(self, path: str, methods: t.List[str]):
+    def register_endpoint(self, path: str, methods: t.List[str], *args, **kwargs):
         def _wrapper(fn):
             for method in methods:
                 if method not in self.method_names:
                     raise ValueError(f"Invalid method: {method}")
 
             endpoint = self.router.setdefault_endpoint(path, Endpoint(path))
+
+            handler = fn(*args, **kwargs) if isinstance(fn, type) else fn
             for method in methods:
-                setattr(endpoint, method, fn)
+                setattr(endpoint, method, handler)
 
             return fn
 
         return _wrapper
 
-    def get(self, path: str):
-        return self.register_endpoint(path, methods=["get"])
+    def get(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["get"], *args, **kwargs)
 
-    def head(self, path: str):
-        return self.register_endpoint(path, methods=["head"])
+    def head(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["head"], *args, **kwargs)
 
-    def post(self, path: str):
-        return self.register_endpoint(path, methods=["post"])
+    def post(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["post"], *args, **kwargs)
 
-    def put(self, path: str):
-        return self.register_endpoint(path, methods=["put"])
+    def put(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["put"], *args, **kwargs)
 
-    def delete(self, path: str):
-        return self.register_endpoint(path, methods=["delete"])
+    def delete(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["delete"], *args, **kwargs)
 
-    def connect(self, path: str):
-        return self.register_endpoint(path, methods=["connect"])
+    def connect(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["connect"], *args, **kwargs)
 
-    def options(self, path: str):
-        return self.register_endpoint(path, methods=["options"])
+    def options(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["options"], *args, **kwargs)
 
-    def trace(self, path: str):
-        return self.register_endpoint(path, methods=["trace"])
+    def trace(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["trace"], *args, **kwargs)
 
-    def patch(self, path: str):
-        return self.register_endpoint(path, methods=["patch"])
+    def patch(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["patch"], *args, **kwargs)
 
-    def websocket(self, path: str):
-        return self.register_endpoint(path, methods=["websocket"])
+    def websocket(self, path: str, *args, **kwargs):
+        return self.register_endpoint(path, methods=["websocket"], *args, **kwargs)
 
     def register_subapp(self, subapp: "SubApp"):
         self.router.merge_router(subapp.prefix, subapp.router)
