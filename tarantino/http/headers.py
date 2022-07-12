@@ -7,33 +7,27 @@ class Headers(t.Mapping[str, str]):
     def __init__(
         self,
         *,
-        headers: t.Mapping[str, str | t.Sequence[str]] | None = None,
+        headers_dict: t.Mapping[str, str | t.Sequence[str]] | None = None,
         scope: t.MutableMapping[str, t.Any] | None = None,
     ):
-        if headers is not None and scope is not None:
+        if headers_dict is not None and scope is not None:
             raise AssertionError("Only one of headers and scope should be set.")
 
-        self._headers: t.List[t.Tuple[bytes, bytes]] = []
+        self._headers: t.Dict[bytes, t.List[bytes] | bytes] = dict()
 
-        if headers is None and scope is None:
+        if headers_dict is None and scope is None:
             return
 
-        if headers:
-            if isinstance(headers, t.Sequence):
-                self._headers = [(self.encode(k), self.encode(v)) for (k, v) in headers]
-            if isinstance(headers, t.Mapping):
-                for k, v in headers.items():
-                    key = self.encode(k)
-                    if isinstance(v, t.Sequence):
-                        for item in v:
-                            item = self.encode(item)
-                            self._headers.append((key, item))
-                    else:
-                        value = self.encode(v)
-                        self._headers.append((key, value))
+        if headers_dict:
+            for k, v in headers_dict.items():
+
+                key = self.encode_key(k)
+                value = self.encode_value(v)
+                self._headers[key] = value
 
         if scope:
-            self._headers = scope["headers"]
+            for k, v in scope["headers"]:
+                self.set(k, v, mode="append")
 
     def encode(self, s: t.Any):
         return s if isinstance(s, bytes) else bytes(str(s), encoding=self.encoding_type)
@@ -41,35 +35,56 @@ class Headers(t.Mapping[str, str]):
     def decode(self, s: bytes):
         return s.decode(self.encoding_type)
 
+    def encode_key(self, key: str | bytes):
+        assert isinstance(key, (str, bytes))
+        return self.encode(key)
+
+    def encode_value(self, value: t.Any | list):
+        value = value if isinstance(value, list) else [value]
+        value = [self.encode(item) for item in value]
+        return value
+
+    def decode_key(self, key: bytes):
+        return self.decode(key)
+
+    def decode_value(self, value: t.List[bytes]):
+        value = [self.decode(item) for item in value]
+        if len(value) == 1:
+            return value[0]
+        else:
+            return value
+
     def __setitem__(self, key: str | bytes, value: str | bytes):
-        key = self.encode(key)
-        value = self.encode(value)
-        self._headers.append((key, value))
+        key = self.encode_key(key)
+        value = self.encode_value(value)
+        self._headers[key] = value
 
     def __getitem__(self, key: str | bytes):
-        key = self.encode(key)
-        values = []
+        return self._headers[self.encode(key)]
 
-        for k, v in self._headers:
-            if key == k:
-                values.append(v)
-
-        if len(values) == 0:
-            raise KeyError(f"Invalid key: {self.decode(key)}")
-
-        return values if len(values) > 1 else values[0]
+    def __delitem__(self, key: str | bytes):
+        del self._headers[self.encode_key(key)]
 
     def __iter__(self):
-        return iter([k for (k, _) in self._headers])
+        return iter(self._headers.keys())
 
     def __len__(self):
         return len(self._headers)
 
-    def get(self, key: str | bytes, default: t.Any = None, decode=False):
-        try:
-            return self.decode(self[key]) if decode else self[key]
-        except KeyError:
-            return default
+    def keys(self):
+        return [self.decode_key(key) for key in self._headers.keys()]
+
+    def values(self):
+        return [self.decode_value(value) for value in self._headers.values()]
+
+    def get(
+        self,
+        key: str | bytes,
+        default: t.Any = None,
+        decode=False,
+    ):
+        value = self._headers.get(self.encode(key), self.encode_value(default))
+        return self.decode_value(value) if decode else value
 
     def set(
         self,
@@ -80,42 +95,56 @@ class Headers(t.Mapping[str, str]):
         if mode not in ["append", "replace"]:
             raise ValueError(f"Invalid set mode: {mode}")
 
+        key = self.encode_key(key)
+
         if mode == "append":
+            value = self._headers.get(key, []) + self.encode_value(value)
             self[key] = value
 
         elif mode == "replace":
-            replace_idx = -1
-            key = self.encode(key)
-            for idx, (k, v) in enumerate(self._headers):
-                if k == key:
-                    replace_idx = idx
-                    break
+            self[key] = self.encode_value(value)
 
-            if replace_idx == -1:
-                self[key] = value
-            else:
-                self._headers[replace_idx] = (self.encode(key), self.encode(value))
+    def pop(
+        self,
+        key: str | bytes,
+        default: t.Any = None,
+        decode=False,
+    ):
+        key = self.encode_key(key)
+        value = self.get(
+            key,
+            default=default,
+            decode=decode,
+        )
+        if key in self._headers:
+            del self[key]
+        return value
 
-    def pop(self, key: str | bytes):
-        key = self.encode(key)
-        pop_idxs = []
-        for idx, (k, v) in enumerate(self._headers):
-            if k == key:
-                pop_idxs.append(idx)
+    def setdefault(
+        self,
+        key: str | bytes,
+        default: t.Any = None,
+        decode=False,
+    ):
+        key = self.encode_key(key)
+        value = default
 
-        for idx in pop_idxs:
-            self._headers.pop(idx)
+        if key not in self._headers:
+            self[key] = value
+        else:
+            value = self.get(key, default=default, decode=decode)
 
-    def setdefault(self, key: str | bytes, default: t.Any = None, decode=False):
-        try:
-            return self.decode(self[key]) if decode else self[key]
-        except KeyError:
-            self[key] = self.encode(default)
-            return self.decode(self[key]) if decode else self[key]
+        return value
 
-    def getlist(self, decode=False):
-        if not decode:
-            return self._headers
+    def to_list(self, decode=False):
+        headers_list = list()
 
-        _headers = [(self.decode(k), self.decode(v)) for (k, v) in self._headers]
-        return _headers
+        for k, v in self._headers.items():
+            key = self.decode_key(k) if decode else k
+            values = self.decode_value(v) if decode else v
+            values = values if isinstance(values, list) else [values]
+
+            for value in values:
+                headers_list.append((key, value))
+
+        return headers_list
