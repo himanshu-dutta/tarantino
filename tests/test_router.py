@@ -28,7 +28,7 @@ def test_absolute_route():
         kwargs = test_case["kwargs"]
         route = Endpoint(path)
 
-        router.add_route(path, route)
+        router.add_endpoint(path, route)
 
         matched_route, matched_kwargs = router.match_uri(uri)
 
