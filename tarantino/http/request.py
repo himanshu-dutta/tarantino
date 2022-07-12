@@ -7,7 +7,7 @@ class Request:
         self.scope = scope
 
         self.query_params = parse.parse_qs(self.scope.get("query_string", b"").decode())
-        self.headers = Headers(scope=scope)
+        self.headers = Headers(headers_list=scope["headers"])
         self.cookies = self.parse_cookies(self.headers.get("cookie", "", decode=True))
 
         self.client = self.scope["client"]

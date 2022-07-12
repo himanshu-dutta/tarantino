@@ -78,7 +78,7 @@ class ErrorResponse(Middleware):
 
             if message["type"] == "http.response.start" and message["status"] >= 400:
                 status_code = message["status"]
-                headers = Headers(headers=message["headers"])
+                headers = Headers(headers_list=message["headers"])
 
                 response = response_template % (
                     status_code,
@@ -93,7 +93,7 @@ class ErrorResponse(Middleware):
                 message = {
                     "type": "http.response.start",
                     "status": status_code,
-                    "headers": headers.getlist(),
+                    "headers": headers.to_list(),
                 }
 
                 await send(message)

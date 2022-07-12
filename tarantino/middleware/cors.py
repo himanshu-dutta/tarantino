@@ -35,7 +35,7 @@ class Cors(Middleware):
             return
 
         method = scope["method"]
-        request_headers = Headers(scope=scope)
+        request_headers = Headers(headers_list=scope["headers"])
         origin = request_headers.get("origin", "", decode=True)
 
         if origin:
@@ -119,7 +119,7 @@ class Cors(Middleware):
 
             if message_type == "http.response.start":
                 status_code = message["status"]
-                response_headers = Headers(headers=message["headers"])
+                response_headers = Headers(headers_list=message["headers"])
 
                 origin = request_headers.get("origin")
                 ac_request_method = request_headers.get(
@@ -147,12 +147,10 @@ class Cors(Middleware):
                 if err:
                     status_code = HTTPStatusCode.STATUS_400_BAD_REQUEST
 
-                print("Response Headers: ", response_headers._headers)
-
                 message = {
                     "type": "http.response.start",
                     "status": status_code,
-                    "headers": response_headers.getlist(),
+                    "headers": response_headers.to_list(),
                 }
 
             await send(message)
@@ -165,7 +163,7 @@ class Cors(Middleware):
 
             if message_type == "http.response.start":
                 status_code = message["status"]
-                response_headers = Headers(headers=message["headers"])
+                response_headers = Headers(headers_list=message["headers"])
 
                 origin = request_headers.get("origin")
                 has_cookie = True if request_headers.get("cookie", None) else False
@@ -181,7 +179,7 @@ class Cors(Middleware):
                 message = {
                     "type": "http.response.start",
                     "status": status_code,
-                    "headers": response_headers.getlist(),
+                    "headers": response_headers.to_list(),
                 }
 
             await send(message)

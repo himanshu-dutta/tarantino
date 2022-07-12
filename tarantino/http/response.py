@@ -19,7 +19,7 @@ class Response:
         self.body = body
         self.status = status
         self.headers = (
-            headers if isinstance(headers, Headers) else Headers(headers=headers)
+            headers if isinstance(headers, Headers) else Headers(headers_dict=headers)
         )
         self.content_type = content_type if content_type else self.default_content_type
         self.cookies: t.List[Cookie] = list()
@@ -84,7 +84,7 @@ class Response:
         return self.status
 
     def get_headers(self):
-        return self.headers.getlist() + self.cookies
+        return self.headers.to_list() + self.cookies
 
     def get_body(self):
         return self.body
