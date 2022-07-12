@@ -1,10 +1,9 @@
 from datetime import datetime
 
+from casts import DatetimeCast
 from tarantino import SubApp
 from tarantino.authentication import authenticate
 from tarantino.http import HTTP200Response
-
-from casts import DatetimeCast
 
 subapp = SubApp(prefix="/salutations")
 

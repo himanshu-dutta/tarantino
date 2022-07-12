@@ -1,18 +1,17 @@
+import blog.index as blog
+import chat.index as chat
 import login
 import salutation
-import chat.index as chat
-import blog.index as blog
-
 from tarantino import Tarantino
 from tarantino.authentication import authenticate
-from tarantino.middleware import default_middlewares, cors
 from tarantino.http import (
     HTTP200Response,
     HTTPRequest,
-    JSONResponse,
     HTTPResponse,
     HTTPStatusCode,
+    JSONResponse,
 )
+from tarantino.middleware import cors, default_middlewares
 
 app = Tarantino(
     "basic",
