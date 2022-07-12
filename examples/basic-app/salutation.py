@@ -28,14 +28,14 @@ async def hello(request, name: str):
     return HTTP200Response(body)
 
 
-@subapp.get("/hello/{from:str}/{to:str}/{on:date}")
-async def hello(request, f: str, t: str, on: datetime):
+@subapp.get("/hello/{name:str}/{to:str}/{on:date}")
+async def hello(request, name: str, to: str, on: datetime):
 
     body = f"""
     <!doctype html>
     <html>
     <body>
-    <h1> {f} said to {t} on {on.strftime('%Y-%m-%d')}!! </h1>
+    <h1> {name} said to {to} on {on.strftime('%Y-%m-%d')}!! </h1>
     </body>
     </html>
     """
