@@ -14,7 +14,7 @@ class ChatHandler(WebsocketHandler):
     async def on_connect(self):
         print("Connection opened by user: ", self.params["username"])
         await self.accept()
-        self.ping_close = await set_interval(self.send_ping_msg, 2)
+        self.ping_close = set_interval(self.send_ping_msg, 2)
 
     async def on_message(self, text_data: str = None, bytes_data: bytes = None):
         print("Msg from WS: ", text_data)
