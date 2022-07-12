@@ -1,4 +1,10 @@
-from tarantino.http import HTTPMethods, HTTPRequest, HTTPResponse, HTTPStatusCode
+from tarantino.http import (
+    Headers,
+    HTTPMethods,
+    HTTPRequest,
+    HTTPResponse,
+    HTTPStatusCode,
+)
 from tarantino.imports import t
 from tarantino.types import HTTPCallback, WSCallback
 from tarantino.websocket import WSConnection
@@ -37,14 +43,14 @@ class Endpoint:
         return http_method_not_allowed_response
 
     async def default_options_handler(self):
-        headers = list()
+        headers = Headers()
         allowed_methods = ["OPTIONS"]
 
         for method in dir(HTTPMethods):
             if getattr(self, method) is not None:
                 allowed_methods.append(method.upper())
 
-        headers = [(b"allow", ", ".join(allowed_methods).encode())]
+        headers.set("allow", ", ".join(allowed_methods))
 
         return HTTPResponse("", HTTPStatusCode.STATUS_204_NO_CONTENT, headers)
 
