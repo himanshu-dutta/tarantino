@@ -1,8 +1,16 @@
 #!/bin/sh -e
 
-autoflake --remove-all-unused-imports --recursive --remove-unused-variables --in-place  tarantino --exclude="*/__init__.py","imports.py"
-black tarantino
-isort tarantino
-docformatter --in-place tarantino/*.py
-docformatter --in-place tarantino/http/*.py
-docformatter --in-place tarantino/websocket/*.py
+target=$1
+
+if [ -z "$target" ]
+  then
+    target="tarantino"
+fi
+
+
+autoflake --remove-all-unused-imports --recursive --remove-unused-variables --in-place  $target --exclude="*/__init__.py","imports.py"
+black $target
+isort $target
+docformatter --in-place $target/*.py
+docformatter --in-place $target/http/*.py
+docformatter --in-place $target/websocket/*.py
