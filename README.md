@@ -18,10 +18,10 @@ The package can currently be installed through git directly:
 $ pip install git+https://github.com/himanshu-dutta/tarantino.git
 ```
 
-or with one of the two additional sets of dependencies: `test` and `dev`.
+or with additional set of `dev` dependencies:
 
 ```console
-$ pip install "tarantino[test] @ git+https://github.com/himanshu-dutta/tarantino.git"
+$ pip install "tarantino[dev] @ git+https://github.com/himanshu-dutta/tarantino.git"
 ```
 
 ---
