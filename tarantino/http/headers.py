@@ -8,14 +8,14 @@ class Headers(t.Mapping[str, str]):
         self,
         *,
         headers_dict: t.Mapping[str, str | t.Sequence[str]] | None = None,
-        scope: t.MutableMapping[str, t.Any] | None = None,
+        headers_list: t.Sequence[t.Tuple[str, str]] | None = None,
     ):
-        if headers_dict is not None and scope is not None:
+        if headers_dict is not None and headers_list is not None:
             raise AssertionError("Only one of headers and scope should be set.")
 
         self._headers: t.Dict[bytes, t.List[bytes] | bytes] = dict()
 
-        if headers_dict is None and scope is None:
+        if headers_dict is None and headers_list is None:
             return
 
         if headers_dict:
@@ -25,8 +25,8 @@ class Headers(t.Mapping[str, str]):
                 value = self.encode_value(v)
                 self._headers[key] = value
 
-        if scope:
-            for k, v in scope["headers"]:
+        if headers_list:
+            for k, v in headers_list:
                 self.set(k, v, mode="append")
 
     def encode(self, s: t.Any):
