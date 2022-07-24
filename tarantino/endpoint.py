@@ -6,77 +6,76 @@ from tarantino.http import (
     HTTPStatusCode,
 )
 from tarantino.imports import t
-from tarantino.types import HTTPCallback, WSCallback
-from tarantino.websocket import WSConnection
+from tarantino.types import HTTPHandler, WebsocketHandler
+from tarantino.websocket import WebsocketConnection
 
 
 class Endpoint:
-    """`Endpoint` consists of mapping between the `HTTP` methods and their
-    respective handlers.
+    async def __call__(self, scope, receive, send, **kwargs):
+        raise NotImplementedError()
 
-    It also maps `websocket` request to a handler.
-    """
 
-    method_names = dir(HTTPMethods) + ["websocket"]
-
-    def __init__(self, path: str):
+class HTTPEndpoint(Endpoint):
+    def __init__(self, path):
         self.path = path
-        self.handlers: t.Dict[str, HTTPCallback | WSCallback] = dict()
+        self.method_handlers: t.Dict[str, HTTPHandler] = dict()
 
-    def __setattr__(self, name, value):
-        if name in self.method_names:
-            self.handlers[name] = value
+    async def __call__(self, scope, receive, send, **kwargs):
+        response: HTTPResponse = None
+        method = scope["method"]
+        if method not in self.method_handlers:
+            if method == "OPTIONS":
+                response = await self.default_options_handler()
+            response = await self.method_not_allowed_handler()
         else:
-            super().__setattr__(name, value)
+            handler = self.method_handlers[method]
+            request = HTTPRequest(scope, receive, send)
+            response: HTTPResponse = await handler(request, **kwargs)
+        await response(scope, receive, send)
 
-    def __getattr__(self, name):
-        if name in self.method_names:
-            return self.handlers.get(name)
-        else:
-            raise AttributeError(
-                f"Invalid method name: {name}. Allowed methods are:"
-                f" {self.method_names}"
-            )
-
-    async def not_allowed_handler(self, status_code: int):
-        http_method_not_allowed_response = HTTPResponse("", status_code, [])
-        return http_method_not_allowed_response
+    async def method_not_allowed_handler(self):
+        return HTTPResponse("", HTTPStatusCode.STATUS_405_METHOD_NOT_ALLOWED)
 
     async def default_options_handler(self):
+        allowed_methods = set(["OPTIONS"] + list(self.method_handlers.keys()))
         headers = Headers()
-        allowed_methods = ["OPTIONS"]
-
-        for method in dir(HTTPMethods):
-            if getattr(self, method) is not None:
-                allowed_methods.append(method.upper())
-
         headers.set("allow", ", ".join(allowed_methods))
-
         return HTTPResponse("", HTTPStatusCode.STATUS_204_NO_CONTENT, headers)
 
-    async def default_handler(
-        self, conn_request: HTTPRequest | WSConnection, **kwargs
-    ) -> t.Awaitable[HTTPResponse]:
-        scope_type = conn_request.scope["type"]
-        method_name = conn_request.scope.get("method", "").lower()
+    def add_handler(self, handler: HTTPHandler, methods: t.List[str]):
+        for method in methods:
+            if method.upper() not in dir(HTTPMethods):
+                raise ValueError(f"Invalid method: {method}")
+            if method.upper() in self.method_handlers:
+                raise ValueError(f"Handler already exists for method: {method}")
 
-        if scope_type == "http":
-            if method_name == "options":
-                return await self.default_options_handler()
-            return await self.not_allowed_handler(
-                HTTPStatusCode.STATUS_405_METHOD_NOT_ALLOWED
-            )
+            self.method_handlers[method.upper()] = handler
 
-        elif scope_type == "websocket":
-            return await self.not_allowed_handler(HTTPStatusCode.STATUS_403_FORBIDDEN)
+    def extend(self, o: "HTTPEndpoint"):
+        method_handlers = o.method_handlers
+        overlapping_methods = set(self.method_handlers.keys()).intersection(
+            set(method_handlers.keys())
+        )
 
-        else:
-            raise ValueError(f"Invalid scope type: {scope_type}")
+        if overlapping_methods:
+            overlapping_methods = ", ".join(overlapping_methods)
+            raise ValueError(f"Found overlapping methods: {overlapping_methods}")
 
-    async def __call__(self, conn_request: HTTPRequest | WSConnection, **kwargs):
-        method = str(getattr(conn_request, "method", "websocket")).lower()
-        handler = getattr(self, method)
-        if not handler:
-            handler = self.default_handler
+        self.method_handlers.update(method_handlers)
 
-        return await handler(conn_request, **kwargs)
+
+class WebsocketEndpoint(Endpoint):
+    def __init__(self, path):
+        self.path = path
+        self.handler: WebsocketHandler = None
+
+    async def __call__(self, scope, receive, send, **kwargs):
+        assert self.handler is not None, "No handler for the path"
+
+        connection = WebsocketConnection(scope, receive, send)
+        await self.handler(connection, **kwargs)
+
+    def add_handler(self, handler: WebsocketHandler):
+        if self.handler:
+            raise ValueError(f"Handler already exists")
+        self.handler = handler

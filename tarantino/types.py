@@ -1,6 +1,6 @@
 from tarantino.http import HTTPRequest, HTTPResponse
-from tarantino.imports import re, t
-from tarantino.websocket import WSConnection
+from tarantino.imports import t
+from tarantino.websocket import WebsocketConnection
 
 Scope = t.MutableMapping[str, t.Any]
 Message = t.MutableMapping[str, t.Any]
@@ -8,8 +8,10 @@ Message = t.MutableMapping[str, t.Any]
 Receive = t.Callable[[], t.Awaitable[Message]]
 Send = t.Callable[[Message], t.Awaitable[None]]
 ASGIApp = t.Callable[[Scope, Receive, Send], t.Awaitable[None]]
-HTTPCallback = t.Callable[[HTTPRequest, str], t.Awaitable[HTTPResponse]]
-WSCallback = t.Callable[[WSConnection, str], t.Awaitable[None | HTTPResponse]]
+HTTPHandler = t.Callable[[HTTPRequest, str], t.Awaitable[HTTPResponse]]
+WebsocketHandler = t.Callable[
+    [WebsocketConnection, str], t.Awaitable[None | HTTPResponse]
+]
 
 
 class Middleware(t.Protocol):
@@ -22,8 +24,16 @@ class Middleware(t.Protocol):
         ...
 
 
-class CastType(t.Protocol):
-    pattern: str | re.Pattern = ""
+T = t.TypeVar("T")
 
-    def parse(self, segment: str) -> t.Any:
+
+class CastType(t.Generic[T]):
+    pattern: str = ""
+
+    @staticmethod
+    def parse(value: str) -> T:
+        ...
+
+    @staticmethod
+    def to_str(value: T) -> str:
         ...

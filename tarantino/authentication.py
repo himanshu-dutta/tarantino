@@ -1,6 +1,6 @@
 from tarantino.http import Headers, HTTPRequest, HTTPResponse, HTTPStatusCode
 from tarantino.imports import datetime, hashlib, t, wraps
-from tarantino.types import HTTPCallback
+from tarantino.types import HTTPHandler
 
 _token_registry: t.Dict[str, "Credentials"] = dict()
 COOKIE_NAME = "_sessionid"
@@ -76,7 +76,7 @@ class AuthenticationResponse(HTTPResponse):
 _AnonymousCredentials = Credentials()
 
 
-def authenticate(cb: HTTPCallback) -> HTTPCallback:
+def authenticate(cb: HTTPHandler) -> HTTPHandler:
     @wraps(cb)
     def _inner(request: HTTPRequest, **kwargs):
         token = request.cookies.get(COOKIE_NAME, "")
@@ -86,9 +86,5 @@ def authenticate(cb: HTTPCallback) -> HTTPCallback:
         response = cb(request, **kwargs)
 
         return response
-
-    _inner.__name__ = cb.__name__
-    _inner.__qualname__ = cb.__qualname__
-    _inner.__doc__ = cb.__doc__
 
     return _inner

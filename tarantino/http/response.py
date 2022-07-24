@@ -99,6 +99,23 @@ class Response:
             self.headers.set("content-type", self.content_type)
         self.headers.set("content-length", len(self.body))
 
+    async def __call__(self, scope, receive, send):
+        await send(
+            {
+                "type": "http.response.start",
+                "status": self.get_status(),
+                "headers": self.get_headers(),
+            }
+        )
+
+        await send(
+            {
+                "type": "http.response.body",
+                "body": self.get_body(),
+                "more_body": False,
+            }
+        )
+
 
 class PlainTextResponse(Response):
     def __init__(
