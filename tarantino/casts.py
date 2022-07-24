@@ -1,40 +1,56 @@
-from tarantino.imports import re, t
+from tarantino.imports import t
 from tarantino.types import CastType
 
 
-class IntCast:
-    pattern = r"^[-+]?[1-9][0-9]*$"
+class IntCast(CastType):
+    pattern = r"[-+]?[0-9]+"
 
     @staticmethod
-    def parse(segment: str) -> int:
-        return int(segment)
-
-
-class FloatCast:
-    pattern = r"^[-+]?(?:\d*\.\d+|\d+)$"
+    def parse(value: str) -> int:
+        return int(value)
 
     @staticmethod
-    def parse(segment: str) -> float:
-        return float(segment)
+    def to_str(value: int) -> str:
+        return str(value)
 
 
-class BoolCast:
-    pattern = r"^(true|false)$"
-
-    @staticmethod
-    def parse(segment: str) -> bool:
-        return segment == "true"
-
-
-class StrCast:
-    pattern = r".*"
+class FloatCast(CastType):
+    pattern = r"[+-]?([0-9]*[.])?[0-9]+"
 
     @staticmethod
-    def parse(segment: str):
-        return segment
+    def parse(value: str) -> float:
+        return float(value)
+
+    @staticmethod
+    def to_str(value: float) -> str:
+        return str(value)
 
 
-class CastRegistry:
+class BoolCast(CastType):
+    pattern = r"(true|false)"
+
+    @staticmethod
+    def parse(value: str) -> bool:
+        return value == "true"
+
+    @staticmethod
+    def to_str(value: bool) -> str:
+        return "true" if value else "false"
+
+
+class StrCast(CastType):
+    pattern = r"[^/]+"
+
+    @staticmethod
+    def parse(value: str) -> str:
+        return value
+
+    @staticmethod
+    def to_str(value: str) -> str:
+        return value
+
+
+class _CastRegistry:
     """`CastRegistry` is a utility which consists of various casts that can be
     applied to the variable path segments."""
 
@@ -50,14 +66,17 @@ class CastRegistry:
         self.register_cast("str", StrCast)
 
     def register_cast(self, cast_name: str, cast: CastType):
-        assert hasattr(cast, "pattern"), "Cast doesn't have attribute `pattern`"
-        assert hasattr(cast, "parse"), "Cast doesn't have attribute `parse`"
-        if isinstance(cast.pattern, str):
-            cast.pattern = re.compile(cast.pattern)
+        assert issubclass(cast, CastType)
         self.casts[cast_name] = cast
 
-    def get(self, cast_name: str):
-        return self.casts.get(cast_name)
+    def __getitem__(self, name: str):
+        return self.casts[name]
 
-    def merge(self, o: "CastRegistry"):
-        self.casts.update(o.casts)
+    def __setitem__(self, name: str, cast: CastType):
+        self.casts[name] = cast
+
+    def get(self, cast_name: str, default: t.Any = None):
+        return self.casts.get(cast_name, default)
+
+
+CastRegistry = _CastRegistry()
