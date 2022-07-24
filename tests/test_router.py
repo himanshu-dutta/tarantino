@@ -35,6 +35,3 @@ def test_match_uri():
 
         for arg_name in kwargs:
             assert kwargs[arg_name] == matched_kwargs[arg_name]
-
-
-test_absolute_route()
