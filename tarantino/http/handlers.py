@@ -1,8 +1,7 @@
-from tarantino.http import HTTPRequest
-from tarantino.http import HTTPResponse
-from tarantino.imports import t
+from tarantino.http import HTTPRequest, HTTPResponse
 from tarantino.http.headers import Headers
-from tarantino.http.utils import HTTPMethods, HTTPStatusCode
+from tarantino.http.utils import HTTPStatusCode
+from tarantino.imports import t
 
 
 def detect_method_overridden(cls, obj):
