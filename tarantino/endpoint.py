@@ -26,18 +26,26 @@ class HTTPEndpoint(Endpoint):
         if method not in self.method_handlers:
             if method == "OPTIONS":
                 response = await self.default_options_handler()
-            response = await self.method_not_allowed_handler()
+            else:
+                response = await self.method_not_allowed_handler()
         else:
             handler = self.method_handlers[method]
             request = HTTPRequest(scope, receive, send)
             response: HTTPResponse = await handler(request, **kwargs)
         await response(scope, receive, send)
 
+    @property
+    def allowed_methods(self):
+        return set(["OPTIONS"] + list(self.method_handlers.keys()))
+
     async def method_not_allowed_handler(self):
-        return HTTPResponse("", HTTPStatusCode.STATUS_405_METHOD_NOT_ALLOWED)
+        allowed_methods = self.allowed_methods
+        headers = Headers()
+        headers.set("allow", ", ".join(allowed_methods))
+        return HTTPResponse("", HTTPStatusCode.STATUS_405_METHOD_NOT_ALLOWED, headers)
 
     async def default_options_handler(self):
-        allowed_methods = set(["OPTIONS"] + list(self.method_handlers.keys()))
+        allowed_methods = self.allowed_methods
         headers = Headers()
         headers.set("allow", ", ".join(allowed_methods))
         return HTTPResponse("", HTTPStatusCode.STATUS_204_NO_CONTENT, headers)
