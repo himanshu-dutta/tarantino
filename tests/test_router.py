@@ -1,8 +1,8 @@
 from tarantino.router import Router
-from tarantino.endpoint import Endpoint
+from tarantino.endpoint import HTTPEndpoint
 
 
-def test_absolute_route():
+def test_match_uri():
     test_cases = [
         {
             "path": "/user/{user_id:int}",
@@ -26,13 +26,15 @@ def test_absolute_route():
         path = test_case["path"]
         uri = test_case["uri"]
         kwargs = test_case["kwargs"]
-        route = Endpoint(path)
+        endpoint = HTTPEndpoint(path)
 
-        router.add_endpoint(path, route)
+        router.add_endpoint(path, endpoint)
 
-        matched_route, matched_kwargs = router.match_uri(uri)
-
-        assert matched_route == route
+        matched_endpoint, matched_kwargs = router.match_uri(uri)
+        assert matched_endpoint == endpoint
 
         for arg_name in kwargs:
             assert kwargs[arg_name] == matched_kwargs[arg_name]
+
+
+test_absolute_route()
