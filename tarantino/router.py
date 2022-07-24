@@ -1,8 +1,7 @@
 from tarantino.casts import CastRegistry
 from tarantino.endpoint import Endpoint
-from tarantino.imports import t, re
+from tarantino.imports import re, t
 from tarantino.types import CastType
-
 
 PARAM_PATTERN = re.compile(r"{([a-zA-Z_][a-zA-Z0-9_]*)(:[a-zA-Z_][a-zA-Z0-9_]*)?}")
 
@@ -85,9 +84,7 @@ class Route:
         param_casts: t.Dict[str, CastType],
         suffix: bool = False,
     ):
-        """
-        Default behavior is to append prefix.
-        """
+        """Default behavior is to append prefix."""
 
         if suffix:
             prefix_path, prefix_path_pattern, prefix_path_format, prefix_param_casts = (

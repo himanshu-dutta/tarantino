@@ -1,6 +1,6 @@
-from tarantino.http.headers import Headers
 from tarantino.http.cookie import parse_cookies
-from tarantino.imports import json, parse, t
+from tarantino.http.headers import Headers
+from tarantino.imports import json, parse
 
 
 class Request:
