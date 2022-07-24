@@ -1,198 +1,203 @@
 from tarantino.casts import CastRegistry
 from tarantino.endpoint import Endpoint
-from tarantino.imports import t
+from tarantino.imports import t, re
 from tarantino.types import CastType
 
 
-class RouterNode:
-    """A `RouterNode` consists of three attributes: a `Endpoint` and two dicts.
+PARAM_PATTERN = re.compile(r"{([a-zA-Z_][a-zA-Z0-9_]*)(:[a-zA-Z_][a-zA-Z0-9_]*)?}")
 
-    The first dict matches the an absolute path segment name, such as,
-    `user` in `/api/user/profile`, to a `RouterNode`. The second dict
-    maps of `cast` names to `RouterNode`. Example of variable path
-    segment is `{user_id:int}` in `/api/user/{user_id:int}`.
-    """
 
-    def __init__(self, cast_registry: CastRegistry):
-        self.absolute_path_segment_pointers: t.Dict[str, "RouterNode"] = dict()
-        self.variable_path_segment_pointers: t.Dict[
-            str, t.Tuple[str, "RouterNode"]
-        ] = dict()
+def compile_path(path: str) -> t.Tuple[re.Pattern[str], str, t.Dict[str, CastType]]:
+    path_pattern = "^"
+    path_format = ""
+    param_casts = dict()
+    duplicated_params = set()
 
-        self.endpoint: Endpoint | None = None
-        self.cast_registry = cast_registry
+    idx = 0
+
+    for match in PARAM_PATTERN.finditer(path):
+        param_name, cast_name = match.groups(CastRegistry.default_cast_name)
+        cast_name = cast_name.strip(":")
+
+        assert (
+            CastRegistry.get(cast_name) is not None
+        ), f"Unknown cast name: {cast_name}"
+        if param_name in param_casts:
+            duplicated_params.add(param_name)
+
+        cast = CastRegistry[cast_name]
+        param_casts[param_name] = cast
+
+        path_pattern += re.escape(path[idx : match.start()])
+        path_pattern += f"(?P<{param_name}>{cast.pattern})"
+
+        path_format += path[idx : match.start()]
+        path_format += f"{param_name}"
+
+        idx = match.end()
+
+    if duplicated_params:
+        names = ", ".join(sorted(duplicated_params))
+        raise ValueError(f"Found duplicated params: {names} in path: {path}")
+
+    path_pattern += re.escape(path[idx:]) + "$"
+    path_format += path[idx:]
+
+    return (
+        re.compile(path_pattern),
+        path_format,
+        param_casts,
+    )
+
+
+class Route:
+    def __init__(self, path: str):
+        self.path = path
+        self._endpoint = None
+        self.setup_route()
 
     @property
-    def has_endpoint(self):
-        return self.endpoint is not None
+    def endpoint(self) -> Endpoint:
+        return self._endpoint
 
-    def add_absolute_path_segment(self, segment: str, node: "RouterNode"):
-        if self.get_absolute_path_segment(segment):
-            raise ValueError(
-                f"Already have a node mapped to the path segment: {segment}"
+    @endpoint.setter
+    def endpoint(self, endpoint: Endpoint):
+        if self._endpoint is not None:
+            assert hasattr(
+                self._endpoint, "extend"
+            ), "Invalid reassignment of non-extensible endpoint"
+            self._endpoint.extend(endpoint)
+        else:
+            self._endpoint = endpoint
+
+    def setup_route(self):
+        (
+            self.path_pattern,
+            self.path_format,
+            self.param_casts,
+        ) = compile_path(self.path)
+
+    def append_path(
+        self,
+        path: str,
+        path_pattern: re.Pattern[str],
+        path_format: str,
+        param_casts: t.Dict[str, CastType],
+        suffix: bool = False,
+    ):
+        """
+        Default behavior is to append prefix.
+        """
+
+        if suffix:
+            prefix_path, prefix_path_pattern, prefix_path_format, prefix_param_casts = (
+                self.path,
+                self.path_pattern,
+                self.path_format,
+                self.param_casts,
+            )
+            suffix_path, suffix_path_pattern, suffix_path_format, suffix_param_casts = (
+                path,
+                path_pattern,
+                path_format,
+                param_casts,
+            )
+        else:
+            prefix_path, prefix_path_pattern, prefix_path_format, prefix_param_casts = (
+                path,
+                path_pattern,
+                path_format,
+                param_casts,
+            )
+            suffix_path, suffix_path_pattern, suffix_path_format, suffix_param_casts = (
+                self.path,
+                self.path_pattern,
+                self.path_format,
+                self.param_casts,
             )
 
-        self.absolute_path_segment_pointers[segment] = node
+        path_pattern = prefix_path_pattern.pattern.rstrip(
+            "$"
+        ) + suffix_path_pattern.pattern.lstrip("^")
+        path_format = prefix_path_format + suffix_path_format
 
-    def add_variable_path_segment(self, segment: str, node: "RouterNode"):
-        var_name, var_cast_name = self.parse_variable_path_segment(segment)
+        param_casts = prefix_param_casts.copy()
 
-        if self.cast_registry.get(var_cast_name) is None:
-            raise ValueError(f"Invalid cast: {var_cast_name}")
+        for name, cast in suffix_param_casts.items():
+            if name in param_casts:
+                raise ValueError(f"Found duplicated params: {name} in param_casts")
+            param_casts[name] = cast
 
-        if self.variable_path_segment_pointers.get(var_cast_name):
-            raise ValueError(f"Already have a node mapped to the cast: {var_cast_name}")
-
-        self.variable_path_segment_pointers[var_cast_name] = (var_name, node)
-
-    def get_absolute_path_segment(self, segment: str):
-        return self.absolute_path_segment_pointers.get(segment)
-
-    def get_variable_path_segment(self, segment: str):
-        _, var_cast_name = self.parse_variable_path_segment(segment)
-        return self.variable_path_segment_pointers.get(var_cast_name, (None, None))[1]
-
-    def setdefault_absolute_path_segment(self, segment: str, node: "RouterNode"):
-        matched_node = self.get_absolute_path_segment(segment)
-        if not matched_node:
-            matched_node = node
-            self.add_absolute_path_segment(segment, node)
-        return matched_node
-
-    def setdefault_variable_path_segment(self, segment: str, node: "RouterNode"):
-        matched_node = self.get_variable_path_segment(segment)
-        if not matched_node:
-            matched_node = node
-            self.add_variable_path_segment(segment, node)
-        return matched_node
-
-    def setdefault(self, segment: str, node: "RouterNode"):
-        if self.is_variable_segment(segment):
-            return self.setdefault_variable_path_segment(segment, node)
-        else:
-            return self.setdefault_absolute_path_segment(segment, node)
-
-    def get_path_segment(self, segment: str):
-        if self.is_variable_segment(segment):
-            return self.get_variable_path_segment(segment)
-        else:
-            return self.get_absolute_path_segment(segment)
-
-    def match_absolute_path_segment(self, segment: str) -> t.Optional["RouterNode"]:
-        return self.absolute_path_segment_pointers.get(segment)
-
-    def match_variable_path_segment(
-        self, segment: str
-    ) -> t.Tuple[str, t.Any, "RouterNode"] | t.Tuple[None, None, None]:
-        for cast_name, (
-            var_name,
-            node,
-        ) in self.variable_path_segment_pointers.items():
-            cast = self.cast_registry.get(cast_name)
-            if cast.pattern.match(segment):
-                var_value = cast.parse(segment)
-                return (var_name, var_value, node)
-
-        return (None, None, None)
-
-    def parse_variable_path_segment(self, segment: str) -> t.Tuple[str, str]:
-        if not segment.startswith("{") or not segment.endswith("}"):
-            raise ValueError(f"Invalid variable path segment: {segment}")
-        segment = segment[1:-1]
-        segment_splits = segment.split(":")
-
-        if len(segment_splits) == 1:
-            var_name, var_cast_name = (
-                segment_splits[0],
-                self.cast_registry.default_cast_name,
-            )
-        elif len(segment_splits) == 2:
-            var_name, var_cast_name = segment_splits
-        else:
-            raise ValueError(
-                f"Invalid path segment with more than one `:`(colon): {segment}"
-            )
-        return var_name, var_cast_name
-
-    def is_variable_segment(self, segment: str):
-        return (
-            segment.startswith("{")
-            and segment.endswith("}")
-            and len(segment.split(":")) <= 2
-        )
-
-
-class Router:
-    def __init__(self):
-        self.cast_registry = CastRegistry()
-        self.root_node: RouterNode = RouterNode(self.cast_registry)
-
-    def add_endpoint(self, path: str, endpoint: Endpoint):
-        path_segments = self.parse_path(path)
-        node = self.root_node
-
-        for segment in path_segments:
-            node = node.setdefault(segment, RouterNode(self.cast_registry))
-        node.endpoint = endpoint
-
-    def get_endpoint(self, path: str):
-        path_segments = self.parse_path(path)
-        node = self.root_node
-
-        for segment in path_segments:
-            node = node.get_path_segment(segment)
-            if not node:
-                return None
-
-        return node.endpoint
-
-    def setdefault_endpoint(self, path: str, endpoint: Endpoint):
-        matched_endpoint = self.get_endpoint(path)
-        if not matched_endpoint:
-            matched_endpoint = endpoint
-            self.add_endpoint(path, endpoint)
-        return matched_endpoint
+        self.path = prefix_path + suffix_path
+        self.path_pattern = re.compile(path_pattern)
+        self.path_format = path_format
+        self.param_casts = param_casts
 
     def match_uri(
         self, uri: str
     ) -> t.Tuple[Endpoint, t.Dict[str, t.Any]] | t.Tuple[None, None]:
-        uri_segments = self.parse_path(uri)
-        node = self.root_node
-        kwargs: t.Dict[str, t.Any] = dict()
-
-        for segment in uri_segments:
-            next_node = node.match_absolute_path_segment(segment)
-            if next_node:
-                node = next_node
-                continue
-
-            var_name, var_value, next_node = node.match_variable_path_segment(segment)
-            if next_node:
-                kwargs[var_name] = var_value
-                node = next_node
-                continue
-
+        match = self.path_pattern.match(uri)
+        if not match:
             return None, None
 
-        return node.endpoint, kwargs
+        params = match.groupdict()
+        for name, value in params.items():
+            params[name] = self.param_casts[name].parse(value)
+
+        return self.endpoint, params
+
+
+class Router:
+    def __init__(self):
+        self.routes: t.Dict[str, Route] = dict()
+
+    def add_endpoint(self, path: str, endpoint: Endpoint):
+        route = self.routes.setdefault(path, Route(path))
+        route.endpoint = endpoint
+
+    def get_endpoint(self, path: str, default=None):
+        try:
+            return self.routes[path].endpoint
+        except:
+            return default
+
+    def setdefault_endpoint(self, path: str, default: Endpoint = None):
+        try:
+            return self.routes[path].endpoint
+        except:
+            self.add_endpoint(path, default)
+            return default
+
+    def _add_route(self, route: Route):
+        if route.path in self.routes:
+            self.routes[route.path].endpoint = route.endpoint
+        else:
+            self.routes[route.path] = route
+
+    def match_uri(
+        self, uri: str
+    ) -> t.Tuple[Endpoint, t.Dict[str, t.Any]] | t.Tuple[None, None]:
+        for route in self.routes.values():
+            endpoint, kwargs = route.match_uri(uri)
+            if endpoint:
+                return endpoint, kwargs
+
+        return None, None
 
     def merge_router(self, path_prefix: str, o: "Router"):
-        path_prefix_segments = self.parse_path(path_prefix)
-        node = self.root_node
+        assert not path_prefix.endswith("/")
 
-        for segment in path_prefix_segments[:-1]:
-            node = node.setdefault(segment, RouterNode(self.cast_registry))
-        node.setdefault(path_prefix_segments[-1], o.root_node)
+        (
+            prefix_pattern,
+            prefix_format,
+            prefix_casts,
+        ) = compile_path(path_prefix)
 
-        self.cast_registry.merge(o.cast_registry)
-
-    def parse_path(self, path: str):
-        if path == "":
-            return []
-
-        if path.startswith("/"):
-            path = path[1:]
-        return path.split("/")
-
-    def register_cast(self, cast_name: str, cast: CastType):
-        self.cast_registry.register_cast(cast_name, cast)
+        for route in o.routes.values():
+            route.append_path(
+                path_prefix,
+                prefix_pattern,
+                prefix_format,
+                prefix_casts,
+            )
+            self._add_route(route)
