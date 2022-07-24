@@ -65,3 +65,21 @@ class Cookie:
 
     def to_header(self):
         return (b"set-cookie", str(self).encode("utf-8"))
+
+
+def parse_cookies(cookie_str: str) -> t.Dict[str, str]:
+    if isinstance(cookie_str, bytes):
+        cookie_str = cookie_str.decode("latin-1")
+    cookie_strs = cookie_str.split("; ")
+
+    cookies = dict()
+
+    def _(cs: str):
+        delim = cs.find("=")
+        k = cs[:delim]
+        v = cs[delim + 1 :]
+
+        cookies[k] = v
+
+    list(map(_, cookie_strs))
+    return cookies
