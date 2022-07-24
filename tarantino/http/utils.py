@@ -107,7 +107,7 @@ class _HTTPMethods:
     PATCH = "PATCH"
 
     def __dir__(self):
-        return [attr for attr in super().__dir__() if not attr.startswith("_")]
+        return ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS", "TRACE", "PATCH"]
 
 
 HTTPStatusCode = _HTTPStatusCode()
