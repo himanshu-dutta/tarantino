@@ -3,14 +3,14 @@ import asyncio
 from typing import Dict, Tuple
 
 from tarantino import Tarantino
-from tarantino.websocket import WSConnection
+from tarantino.websocket import WebsocketConnection
 from tarantino.http import HTMLResponse, HTTPStatusCode, HTTPRequest
 
 import game as ttt
 
 app = Tarantino("tic-tac-toe")
 
-_player_registry: Dict[str, Tuple[ttt.Player, WSConnection]] = dict()
+_player_registry: Dict[str, Tuple[ttt.Player, WebsocketConnection]] = dict()
 _game_registry = dict()
 
 
@@ -62,7 +62,7 @@ def get_send_update(game: ttt.TicTacToe):
 
 
 @app.websocket("/game")
-async def game(conn: WSConnection):
+async def game(conn: WebsocketConnection):
     await conn.accept()
 
     updateCancelFn = None
