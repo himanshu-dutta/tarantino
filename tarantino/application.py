@@ -7,7 +7,7 @@ from tarantino.types import CastType, Middleware
 
 
 class Tarantino:
-    def __init__(self, name, middlewares: t.Sequence[Middleware] = None):
+    def __init__(self, name, *, middlewares: t.Sequence[Middleware] = None):
         self.name = name
         self.router = Router()
 
@@ -98,6 +98,11 @@ class Tarantino:
     def websocket(self, path: str, *args, **kwargs):
         return self.register_websocket_endpoint(path, *args, **kwargs)
 
+    def http(self, path: str, *args, **kwargs):
+        return self.register_http_endpoint(
+            path, methods=dir(HTTPMethods), *args, **kwargs
+        )
+
     def register_subapp(self, subapp: "SubApp"):
         self.router.merge_router(subapp.prefix, subapp.router)
 
@@ -165,6 +170,11 @@ class SubApp:
 
     def websocket(self, path: str, *args, **kwargs):
         return self.register_websocket_endpoint(path, *args, **kwargs)
+
+    def http(self, path: str, *args, **kwargs):
+        return self.register_http_endpoint(
+            path, methods=dir(HTTPMethods), *args, **kwargs
+        )
 
     def register_subapp(self, subapp: "SubApp"):
         self.router.merge_router(subapp.prefix, subapp.router)
