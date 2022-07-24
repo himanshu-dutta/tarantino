@@ -1,15 +1,20 @@
 from tarantino.http.headers import Headers
+from tarantino.http.cookie import parse_cookies
 from tarantino.imports import json, parse, t
 
 
 class Request:
-    def __init__(self, scope: dict, events: t.List[dict] = None):
+    headers_encoding = "latin-1"
+    body_encoding = "utf-8"
+
+    def __init__(self, scope: dict, receive, send):
         self.scope = scope
+        self.asgi_receive = receive
+        self.asgi_send = send
 
         self.query_params = parse.parse_qs(self.scope.get("query_string", b"").decode())
         self.headers = Headers(headers_list=scope["headers"])
-        self.cookies = self.parse_cookies(self.headers.get("cookie", "", decode=True))
-
+        self.cookies = parse_cookies(self.headers.get("cookie", "", decode=True))
         self.client = self.scope["client"]
         self.http_version = self.scope["http_version"]
         self.method = self.scope.get("method")
@@ -17,11 +22,36 @@ class Request:
         self.content_length = self.headers.get("content-length", decode=True)
         self.content_type = self.headers.get("content-type", decode=True)
 
-        self._body = self.parse_body(events) if events else bytes()
+        self._stream_consumed = False
+
+    async def stream(self):
+        if hasattr(self, "_body"):
+            yield self._body
+            yield b""
+            return
+
+        if self._stream_consumed:
+            raise RuntimeError("Stream already consumed.")
+
+        self._stream_consumed = True
+        while True:
+            message = await self.asgi_receive()
+            body = message.get("body", b"")
+            if body:
+                yield body
+            if not message.get("more_body", False):
+                break
+        yield b""
 
     async def body(self, as_str=False):
+        if not hasattr(self, "_body"):
+            chunks = []
+            async for chunk in self.stream():
+                chunks.append(chunk)
+            self._body = b"".join(chunks)
+
         if as_str:
-            self._body.decode("utf-8")
+            return self._body.decode(self.body_encoding)
         return self._body
 
     async def text(self):
@@ -31,28 +61,6 @@ class Request:
         return await self.body(as_str=False)
 
     async def json(self):
-        return json.loads(await self.body())
-
-    @staticmethod
-    def parse_cookies(cookie_str: str) -> t.Dict[str, str]:
-        if isinstance(cookie_str, bytes):
-            cookie_str = cookie_str.decode("latin-1")
-        cookie_strs = cookie_str.split("; ")
-
-        cookies = dict()
-
-        def _(cs: str):
-            delim = cs.find("=")
-            k = cs[:delim]
-            v = cs[delim + 1 :]
-
-            cookies[k] = v
-
-        list(map(_, cookie_strs))
-        return cookies
-
-    @staticmethod
-    def parse_body(events: t.List[dict]):
-        chunk = [event["body"] for event in events]
-        body = b"".join(chunk)
-        return body
+        if not hasattr(self, "_json"):
+            self._json = json.loads(await self.body())
+        return self._json
